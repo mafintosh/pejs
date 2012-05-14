@@ -30,7 +30,7 @@ template.compile('test.html', function(err, src) {
 
 ## Classic EJS
 
-PEJS templates has your usual EJS syntax with `<%` and `%>`.
+PEJS templates has your usual EJS syntax with `<%` and `%>`. Read more about EJS [here](http://embeddedjs.com/)
 
 * inline code: `<% var a = 42; %>`
 * insert: `<%- data %>`
