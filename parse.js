@@ -1,16 +1,19 @@
-var STATIC = 'STATIC';
-var LOGIC = 'LOGIC';
-var EXPRESSION = 'EXPRESSION';
+var STATIC            = 'STATIC';
+var LOGIC             = 'LOGIC';
+var EXPRESSION        = 'EXPRESSION';
 var ESCAPE_EXPRESSION = 'ESCAPE_EXPRESSION';
-var BLOCK_DECLARE = 'BLOCK_DECLARE';
-var BLOCK_OVERRIDE = 'BLOCK_OVERRIDE';
-var BLOCK_ANONYMOUS = 'BLOCK_ANONYMOUS';
+var BLOCK_DECLARE     = 'BLOCK_DECLARE';
+var BLOCK_OVERRIDE    = 'BLOCK_OVERRIDE';
+var BLOCK_ANONYMOUS   = 'BLOCK_ANONYMOUS';
+
+var TOKEN_BEGIN = '<%';
+var TOKEN_END   = '%>';
 
 var MATCH_BLOCK = /^(\w+)?\s*((?:'(?:(?:\\')|[^'])*')|(?:"(?:(?:\\")|[^"])*"))?(?:\s+(.+))?$/;
 
 var parse = function(src) {
-	return Array.prototype.concat.apply([], src.split('<%').map(function(slice) {
-		return slice.split('%>');
+	return Array.prototype.concat.apply([], src.split(TOKEN_END).map(function(slice) {
+		return slice.split(TOKEN_BEGIN);
 	})).map(function(data, i) {
 		if (i % 2 === 0) return data && {type:STATIC, value:data};
 
