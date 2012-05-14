@@ -43,7 +43,7 @@ PEJS allows you to render other templates inside your template using the `<%@ fi
 	<%@ 'my-template.html' %>
 
 The above renders and inserts to contents of `my-template.html` into the current template.
-These files will also be included and compiled if `template.compile` is used.
+`my-template.html` will also be inlined if `template.compile` is used so it still works in the client.
 
 ## Blocks
 
