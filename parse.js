@@ -37,17 +37,16 @@ var parse = function(src) {
 		if (ctx === '{}' && line.name) return {type:auto, live:live, name:line.name, locals:line.locals, url:line.url, body:[]};
 		if (ctx === '{}' && line.url)  return {type:BLOCK_ANONYMOUS, url:line.url};
 		if (ctx === '{' && line.name)  return {type:auto, live:live, name:line.name, locals:line.locals, capture:1, body:[]};
-		if (ctx === '}') return {capture:-1};
+		if (ctx === '}')               return {capture:-1};
 
 		throw new SyntaxError('could not parse: <%'+data+'%>');
-	}).filter(function(item) {
-		return item;
 	}).reduce(function reduce(result, node) {
 		var last = result[result.length-1];
 
+		if (!node) return result;
 		if (!last || !last.capture) return result.concat(node);
 
-		last.capture += (node.capture || 0);
+		last.capture += node.capture || 0;
 		last.body = last.capture ? last.body.concat(node) : last.body.reduce(reduce, []);
 		return result;
 	}, []);
