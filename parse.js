@@ -1,3 +1,6 @@
+var fs = require('fs');
+var path = require('path');
+
 var STATIC            = 'STATIC';
 var LOGIC             = 'LOGIC';
 var EXPRESSION        = 'EXPRESSION';
@@ -11,6 +14,7 @@ var TOKEN_END   = '%>';
 
 var MATCH_BLOCK = /^(\w+)?\s*((?:'(?:(?:\\')|[^'])*')|(?:"(?:(?:\\")|[^"])*"))?(?:\s+(.+))?$/;
 
+var noop = function() {};
 var parse = function(src) {
 	return Array.prototype.concat.apply([], src.split(TOKEN_END).map(function(slice) {
 		return slice.split(TOKEN_BEGIN);
@@ -54,7 +58,159 @@ var parse = function(src) {
 		return result;
 	}, []);
 };
+var compile = function(tree) {
+	var stringify = function(tree, indent) {
+		var lvl = indent;
+
+		return 'function($t,locals){\n'+lvl+'\twith (locals) {\n'+tree.reduce(function(result, node) {
+			result += indent+'\t\t';
+
+			if (node.type === STATIC) return result+'$t.w('+JSON.stringify(node.value)+');\n';
+			if (node.type === EXPRESSION) return result+'$t.w('+node.value+');\n';
+			if (node.type === ESCAPE_EXPRESSION) return result+'$t.e('+node.value+');\n';
+
+			if (node.type === LOGIC) {
+				if (/\{$/.test(node.value.trim())) {
+					indent += '\t';
+				}
+				if (/^\}/.test(node.value.trim())) {
+					indent = indent.replace('\t', '');
+					result = result.replace(/\t$/, '');
+				}
+				return result+node.value+'\n';
+			}
+
+			var name = JSON.stringify(node.name || null);
+			var locals = node.locals || 'locals';
+			var fn = node.body.length ? ','+stringify(node.body, indent+'\t\t') : '';
+
+			if (node.type === BLOCK_DECLARE || node.type === BLOCK_ANONYMOUS) {
+				return result+'$t.d('+name+','+!!node.live+','+locals+fn+');\n';
+			}
+			if (node.type === BLOCK_OVERRIDE) {
+				return result+'$t.o('+name+','+locals+fn+');\n';
+			}
+		}, '').replace(/\n\s+$/g,'\n')+lvl+'\t}\n'+lvl+'}';
+	};
+	var template = function() {
+		var $t = {};
+		var buffer;
+		var blocks = {};
+		var result = '';
+
+		$t.w = function(data) {
+			if (typeof data === 'object' && data) {
+				(buffer = buffer || []).push(result, data);
+				result = '';
+				return;
+			}
+			result += data;
+		};
+		$t.e = function(data) {
+			return $t.w((''+data).replace(/&(?!\w+;)/g,'&amp;').replace(/>/g,'&gt;').replace(/</g, '&lt;').replace(/"/g,'&quot;'));
+		};
+		$t.o = function(name, locals, block) {
+			var $b = blocks[name];
+
+			if (!$b) return;
+			$b.locals = locals;
+			$b.block = block;
+		};
+		$t.d = function(name, live, locals, block) {
+			if (!name) return block($t, locals);
+
+			var $b = blocks[name] = template();
+			var toString = $b.toString;
+
+			$b.toString = function() {
+				if ($b.block) {
+					$b.block($b, $b.locals);				
+				}
+				return ($b.toString = toString)();
+			};
+
+			$t.w($b);
+			$t.o(name, locals, block);
+		};
+		$t.toString = function() {
+			if (buffer) {
+				result = buffer.join('')+result;
+				buffer = null;
+			}
+			return result;
+		};
+
+		return $t;
+	};
+
+	var out = '(function() {\n';
+
+	out += '\tvar template = '+template.toString()+';\n';
+	out += '\tvar reduce = '+stringify(tree, '').split('\n').join('\n\t')+';\n';
+	out += '\treturn function (locals) {\n\t\tvar $t = template();\n\t\treduce($t,locals || {});\n\t\treturn $t.toString();\n\t};\n}());';
+
+	return out;
+};
+var parser = function(root) {
+	root = root || '.';
+
+	var parseTree = function(file, callback) {
+		var cwd = path.dirname(file);
+		var end = function(err, tree) {
+			end = noop;
+			callback(err, tree);
+		};
+
+		fs.readFile(file, 'utf-8', function(err, src) {
+			if (err) return end(err);
+
+			var tree = parse(src);
+			var waiting = 0;
+			var update = noop;
+
+			tree.forEach(function visit(node) {
+				if (node.url) {
+					waiting++;
+					parseTree(path.join(node.url[0] === '/' ? root : cwd, node.url), function(err, tree) {
+						if (err) return end(err);
+
+						node.body = tree;
+						waiting--;
+						update();
+					});
+					return;
+				}
+				if (node.body) {
+					node.body.forEach(visit);
+				}
+			});
+			update = function() {
+				if (waiting) return;
+				end(null, tree);
+			};
+			update();
+		});
+	};
+
+	return function(file, callback) {
+		parseTree(path.join(root, file), function(err, tree) {
+			callback(err, tree && compile(tree));
+		});
+	};
+};
 
 
-//console.log(JSON.stringify(parse('hello world <% var data = 42; %><%= data %>...<%{ foo }%><%{ "meh.html" }%><%{ test %>meh<%{ fpp %><%} %>test<%} %>'), null, '  '));
-console.log(JSON.stringify(parse(require('fs').readFileSync('example.html', 'utf-8')), null, '  '));
+var then = Date.now();
+
+parser(__dirname)('example/child.html', function(err, src) {	
+	var render = eval(src);
+
+	console.log(Date.now()-then);
+
+	var now = Date.now();
+
+	for (var i = 0; i < 100000; i++) {
+		render();
+	}
+	console.log(Date.now()-now);
+});
