@@ -1,216 +1,232 @@
 var fs = require('fs');
-var vm = require('vm');
 var path = require('path');
+var vm = require('vm');
+
+var STATIC            = 'STATIC';
+var LOGIC             = 'LOGIC';
+var EXPRESSION        = 'EXPRESSION';
+var ESCAPE_EXPRESSION = 'ESCAPE_EXPRESSION';
+var BLOCK_DECLARE     = 'BLOCK_DECLARE';
+var BLOCK_OVERRIDE    = 'BLOCK_OVERRIDE';
+var BLOCK_ANONYMOUS   = 'BLOCK_ANONYMOUS';
+
+var TOKEN_BEGIN = '<%';
+var TOKEN_END   = '%>';
+
+var MATCH_BLOCK = /^(\w+)?\s*((?:'(?:(?:\\')|[^'])*')|(?:"(?:(?:\\")|[^"])*"))?(?:\s+(.+))?$/;
 
 var noop = function() {};
-var template = function(locals, blocks) {
-	var nostr = function() {
-		return '';
-	};
-	var resolve = function() {
-		var val = this.toString();
+var parse = function(src) {
+	return Array.prototype.concat.apply([], src.split(TOKEN_END).map(function(slice) {
+		return slice.split(TOKEN_BEGIN);
+	})).map(function(data, i) {
+		if (i % 2 === 0) return data && {type:STATIC, value:data};
 
-		this.toString = function() {
-			this.toString = nostr;
-			return val;
+		var line = data.split(' ');
+		var pre = line.shift();
+		var live = !!(pre[1] === '[');
+		var auto = pre === '{{' ? BLOCK_DECLARE : BLOCK_OVERRIDE;
+		var ctx = pre.replace(/[\{\[]+/, '{') + (line.length > 1 ? line.pop().replace(/[\}\]]+/, '}') : '');
+
+		line = line.join(' ');
+
+		if (pre === '')  return {type:LOGIC, value:line};
+		if (pre === '#') return null;
+		if (pre === '=') return {type:ESCAPE_EXPRESSION, value:line};
+		if (pre === '-') return {type:EXPRESSION, value:line};
+
+		line = (line.match(MATCH_BLOCK) || []).slice(1);
+		line = !line.length || (line[2] && !line[2]) ? {} : {
+			name:line[0],
+			url:line[1] && line[1].substr(1, line[1].length-2).replace(/\\(.)/g, '$1'), 
+			locals:line[2] && line[2].trim()
 		};
-	};
-	var toString = function() {
-		var t = template(locals, blocks);
 
-		this.toString = nostr;
-		this.fn(t);
-		return t.toString();
-	};
+		if (ctx === '{}' && line.name) return {type:auto, live:live, name:line.name, locals:line.locals, url:line.url, body:[]};
+		if (ctx === '{}' && line.url)  return {type:BLOCK_ANONYMOUS, url:line.url};
+		if (ctx === '{' && line.name)  return {type:auto, live:live, name:line.name, locals:line.locals, capture:1, body:[]};
+		if (ctx === '}')               return {capture:-1};
 
-	blocks = blocks || {};
-	
-	var result = '';
-	var buf;
-	var _t = {};
+		throw new SyntaxError('could not parse: <%'+data+'%>');
+	}).reduce(function reduce(result, node) {
+		var last = result[result.length-1];
 
-	_t.w = function(str) {
-		if (typeof str === 'string' && !str) return;
-		if (typeof str === 'object' && str) {
-			(buf = buf || []).push(result, str);
-			result = '';
-			return;
-		}
-		result += str;
-	};
-	_t.e = function(str) {
-		_t.w((''+str).replace(/&(?!\w+;)/g,'&amp;').replace(/>/g,'&gt;').replace(/</g, '&lt;').replace(/"/g,'&quot;'));
-	};
-	_t.b = function(options, fn) {
-		var name = options.name;
-		var blk = blocks[name];
+		if (!node) return result;
+		if (!last || !last.capture) return result.concat(node);
 
-		if (options.decl && blk) {
-			blk.resolve();
-			delete blocks[name];
-		}
-		if (options.decl) {
-			blk = blocks[name] = {};
-			blk.resolve = resolve;
-			blk.toString = toString;
-		}
-		if (!blk) return;
-
-		blk.fn = fn || nostr;
-		_t.w(blk);
-	};
-	_t.r = function(render, nextLocals) {
-		nextLocals = nextLocals || locals;
-		
-		var t = template(nextLocals, blocks);
-
-		render(t, nextLocals);
-		return t;
-	};
-	_t.toString = function() {
-		return (buf ? buf.join('') : '') + result;
-	};
-	return _t;
+		last.capture += node.capture || 0;
+		last.body = last.capture ? last.body.concat(node) : last.body.reduce(reduce, []);
+		return result;
+	}, []);
 };
+var compile = function(tree) {
+	var stringify = function(tree, indent) {
+		var lvl = indent;
 
-module.exports = function(root, options) {
+		return 'function($t,locals){\n'+lvl+'\twith (locals) {\n'+tree.reduce(function(result, node) {
+			result += indent+'\t\t';
+
+			if (node.type === STATIC) return result+'$t.w('+JSON.stringify(node.value)+');\n';
+			if (node.type === EXPRESSION) return result+'$t.w('+node.value+');\n';
+			if (node.type === ESCAPE_EXPRESSION) return result+'$t.e('+node.value+');\n';
+
+			if (node.type === LOGIC) {
+				if (/\{$/.test(node.value.trim())) {
+					indent += '\t';
+				}
+				if (/^\}/.test(node.value.trim())) {
+					indent = indent.replace('\t', '');
+					result = result.replace(/\t$/, '');
+				}
+				return result+node.value+'\n';
+			}
+
+			var name = JSON.stringify(node.name || null);
+			var locals = node.locals || 'locals';
+			var fn = node.body.length ? ','+stringify(node.body, indent+'\t\t') : '';
+
+			if (node.type === BLOCK_DECLARE || node.type === BLOCK_ANONYMOUS) {
+				return result+'$t.d('+name+','+!!node.live+','+locals+fn+');\n';
+			}
+			if (node.type === BLOCK_OVERRIDE) {
+				return result+'$t.o('+name+','+locals+fn+');\n';
+			}
+		}, '').replace(/\n\s+$/g,'\n')+lvl+'\t}\n'+lvl+'}';
+	};
+	var template = function() {
+		var $t = {};
+		var buffer;
+		var blocks = {};
+		var result = '';
+
+		$t.w = function(data) {
+			if (typeof data === 'object' && data) {
+				(buffer = buffer || []).push(result, data);
+				result = '';
+				return;
+			}
+			result += data;
+		};
+		$t.e = function(data) {
+			return $t.w((''+data).replace(/&(?!\w+;)/g,'&amp;').replace(/>/g,'&gt;').replace(/</g, '&lt;').replace(/"/g,'&quot;'));
+		};
+		$t.o = function(name, locals, block) {
+			var $b = blocks[name];
+
+			if (!$b) return;
+			$b.locals = locals;
+			$b.block = block;
+		};
+		$t.d = function(name, live, locals, block) {
+			if (!name) return block($t, locals);
+
+			var $b = blocks[name] = template();
+			var toString = $b.toString;
+
+			$b.toString = function() {
+				if ($b.block) {
+					$b.block($b, $b.locals);				
+				}
+				return ($b.toString = toString)();
+			};
+
+			$t.w($b);
+			$t.o(name, locals, block);
+		};
+		$t.toString = function() {
+			if (buffer) {
+				result = buffer.join('')+result;
+				buffer = null;
+			}
+			return result;
+		};
+
+		return $t;
+	};
+
+	var out = '(function() {\n';
+
+	out += '\tvar template = '+template.toString()+';\n';
+	out += '\tvar reduce = '+stringify(tree, '').split('\n').join('\n\t')+';\n';
+	out += '\treturn function (locals) {\n\t\tvar $t = template();\n\t\treduce($t,locals || {});\n\t\treturn $t.toString();\n\t};\n}());';
+
+	return out;
+};
+var parser = function(root) {
 	root = root || '.';
 
-	var parse = function(filename, callback) {
-		var cwd = path.dirname(filename);
+	var cache = {};
+	var parseTree = function(file, callback) {
+		var cwd = path.dirname(file);
+		var end = function(err, tree) {
+			end = noop;
+			callback(err, tree);
+		};
 
-		fs.readFile(filename, 'utf-8', function(err, src) {
-			if (err) return callback(err);
+		fs.readFile(file, 'utf-8', function(err, src) {
+			if (err) return end(err);
 
-			var parsed;
+			var tree = parse(src);
 			var waiting = 0;
-			var update = function(err) {
-				if (err) {
-					update = noop;
-					callback(err);
-					return;
-				}
-				if (waiting) return;
+			var update = noop;
 
-				var src = parsed.map(function(line) {
-					return Array.isArray(line) ? line.join('') : line;
-				}).join('\n');
-
-				callback(null, '(function(_t,locals){with(locals){\n'+src+'\n}})');
-			};
-			var process = function(line) {
-				var map = {};
-				var save = function(_, filename) {
-					filename = path.join(filename[0] === '/' ? root : cwd, filename);
-
-					if (map[filename]) return map[filename];
-
+			tree.forEach(function visit(node) {
+				if (node.url) {
 					waiting++;
-					parse(filename, function(err, parsed) {
-						if (err) return update(err);
+					parseTree(node.url = path.join(node.url[0] === '/' ? root : cwd, node.url), function(err, tree) {
+						if (err) return end(err);
 
+						node.body = tree;
 						waiting--;
-						map[filename] = '_t.r('+parsed;
 						update();
 					});
-				};
-				var toString = function() {
-					return line.replace(/@render\('((?:(?:\\')|[^'])*)'/g, save).replace(/@render\("((?:(?:\\")|[^"])*)"/g, save);
-				};
-
-				toString(); // lets bootstrap it
-				return {toString: toString};
-			};
-			
-			parsed = Array.prototype.concat.apply([], src.split('<%').map(function(slice) {
-				return slice.split('%>');
-			})).map(function(line, i) {
-				if (i % 2 === 0) return '_t.w('+JSON.stringify(line)+');';
-
-				line = line.split(' ');
-
-				var pre = line.shift();
-				var suf = line.length > 1 ? line.pop() : pre;
-				var decl = pre.length === 2;
-
-				line = line.join(' ');
-
-				// syntax rewrite
-				if (pre === '@')  {
-					pre = '-';
-					line = '@render('+line+')';
+					return;
 				}
-				
-				if (pre === '')   return process(line);
-				if (pre === '#')  return '';
-				if (pre === '-')  return ['_t.l=',process(line),'\n_t.w(_t.l);'];
-				if (pre === '=')  return ['_t.l=',process(line),'\n_t.e(_t.l);'];
-				// blocks
-				if ((pre === '{{' && suf === '}}') || (pre === '{' && suf === '}')) return '_t.b('+JSON.stringify({name:line,decl:decl})+');';
-				if ((pre === '[[' && suf === ']]') || (pre === '[' && suf === ']')) return '_t.b('+JSON.stringify({name:line,decl:decl,dom:1})+');';
-				if (pre === '{' || pre === '{{')                                    return '_t.b('+JSON.stringify({name:line,decl:decl})+',function(_t){';
-				if (pre === '[' || pre === '[[')                                    return '_t.b('+JSON.stringify({name:line,decl:decl,dom:1})+',function(_t){';
-				if (suf === '}' || suf === '}}' || suf === ']' || suf === ']]')     return '});';
-
-				return line;
+				if (node.body) {
+					node.body.forEach(visit);
+				}
 			});
-
+			update = function() {
+				if (waiting) return;
+				end(null, tree);
+			};
 			update();
 		});
 	};
-	var portableParse = function(filename, callback) {
-		parse(path.join(root, filename), function(err, src) {
+
+	var template = {};	
+
+	template.parse = function(file, callback) {
+		parseTree(file, function(err, tree) {
 			if (err) return callback(err);
 
-			callback(null, '(function() {'+
-			'var template = '+template.toString().trim()+';var render='+src+';return function(locals){'+
-				'locals=locals||{};'+
-				'var main=template(locals);'+
-				'render(main,locals);'+
-				'return main.toString();'+
-			'}}())');
+			var deps = [file];
+
+			tree.forEach(function visit(node) {
+				if (node.url) {
+					deps.push(node.url);
+				}
+				(node.body || []).forEach(visit);
+			});
+
+			callback(null, compile(tree), deps);
 		});
 	};
-	var compile = function(filename, callback) {
-		portableParse(filename, function(err, src) {
+	template.compile = function(file, callback) {
+		template.parse(file, function(err, src, deps) {
 			if (err) return callback(err);
 
-			var fn;
+			var render;
 
 			try {
-				fn = vm.runInNewContext(src, {
-					console: console
-				});				
+				render = vm.runInNewContext(src, {console:console});			
 			} catch (err) {
 				return callback(err);
 			}
-			callback(null, fn);
+
+			callback(null, render, deps);
 		});
 	};
 
-	var that = {};
-
-	that.compile = function(filename, callback) {
-		portableParse(filename, callback);
-	};
-	that.render = function(filename, options, callback) {
-		if (!callback) {
-			callback = options;
-			options = {};
-		}
-		compile(filename, function(err, render) {
-			if (err) return callback(err);
-
-			var rendered;
-
-			try {
-				rendered = render(options || {});
-			} catch (err) {
-				return callback(err);
-			}
-			callback(null, rendered);
-		});
-	};
-
-	return that;
+	return template;
 };
