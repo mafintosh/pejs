@@ -17,11 +17,11 @@ PEJS is easy to use:
 var pejs = require('pejs');
 var template = pejs('my-app-root');
 
-template.render('test.html', {hello:'world'}, function(err, result) {
-	// compiles and render test.html
-	console.log(result);
+template.compile('example/simple.html', function(err, render) {
+	// compiles test.html into a rendering function
+	console.log(render());
 });
-template.compile('test.html', function(err, src) {
+template.compile('example/simple.html', function(err, src) {
 	// parses the template and compiles it down to portable js
 	// this means it works in the client!
 	console.log(src);
@@ -36,21 +36,24 @@ PEJS templates has your usual EJS syntax with `<%` and `%>`. Read more about EJS
 * insert: `<%- data %>`
 * escape: `<%= data %>`
 
-## File support
-
-PEJS allows you to render other templates inside your template using the `<%@ filename %>` syntax.
-
-	<%@ 'my-template.html' %>
-
-The above renders and inserts to contents of `my-template.html` into the current template.
-`my-template.html` will also be inlined if `template.compile` is used so it still works in the client.
-
 ## Blocks
 
-PEJS also lets you define and declare blocks that you that later override using the `<%{` syntax:
+PEJS expands the original EJS syntax by letting you declare blocks using the `<%{` syntax.  
+A block is basically a partial template that optionally can be loaded from a file.
 
-* anchor and declare a block: `<%{{ block_name }}%>`
-* override the content off a block: `<%{ block_name %>hello block<%} %>`
+* anchor and declare a block: `<%{{ blockName }}%>`
+* anchor an anonymous file block: `<%{ 'filename.html' }%>`
+* override the contents off a block: `<%{ blockName %>hello block<%} %>`
+
+In general all block can be loaded from a file instead of being defined inline by providing a filename:
+
+* anchor and declare a block from a file: `<%{{ myBlock 'example/simple.html' }}%>`
+* override a block from a file: `<%{ myOverrideBlock 'example/simple.html' }%>`
+
+If you want include a block using a different set of locals than in you current scope you pass these as the last argument to the block.
+
+* change the locals in a declare block: `<%{{ myBlock {newLocalsArg:oldLocalsArg} }}%>`
+* change the locals in a file block: `<%{ 'example/simple.html', newLocalsHere }%>`
 
 ## Inheritance
 
@@ -64,7 +67,7 @@ Just declare a `base.html` with some anchored blocks:
 
 Then a `child.html` that renders `base.html`
 
-	<%@ 'base.html' %>
+	<%{ 'base.html' }%>
 	<%{ content %>
 		i am inserted in base
 	<%} %>
@@ -72,8 +75,8 @@ Then a `child.html` that renders `base.html`
 To render the example just render `child.html`
 
 ``` js
-template.render('child.html', function(err, result) {
-	console.log(result);
+template.compile('child.html', function(err, render) {
+	console.log(render());
 });
 ```
 
