@@ -41,19 +41,19 @@ PEJS templates has your usual EJS syntax with `<%` and `%>`. Read more about EJS
 PEJS expands the original EJS syntax by letting you declare blocks using the `<%{` syntax.  
 A block is basically a partial template that optionally can be loaded from a file.
 
-* anchor and declare a block: `<%{{ blockName }}%>`
-* anchor an anonymous file block: `<%{ 'filename.html' }%>`
-* override the contents off a block: `<%{ blockName %>hello block<%} %>`
+* declare block: `<%{{ blockName }}%>`
+* declare file block: `<%{ 'filename.html' }%>`
+* override block: `<%{ blockName %>hello block<%} %>`
 
 In general all block can be loaded from a file instead of being defined inline by providing a filename:
 
-* anchor and declare a block from a file: `<%{{ myBlock 'example/simple.html' }}%>`
-* override a block from a file: `<%{ myOverrideBlock 'example/simple.html' }%>`
+* declare block: `<%{{ myBlock 'example/simple.html' }}%>`
+* override block: `<%{ myOverrideBlock 'example/simple.html' }%>`
 
 If you want include a block using a different set of locals than in you current scope you pass these as the last argument to the block.
 
-* change the locals in a declare block: `<%{{ myBlock {newLocalsArg:oldLocalsArg} }}%>`
-* change the locals in a file block: `<%{ 'example/simple.html', newLocalsHere }%>`
+* declare block: `<%{{ myBlock {newLocalsArg:oldLocalsArg} }}%>`
+* override block: `<%{ 'example/simple.html', newLocalsHere }%>`
 
 ## Inheritance
 
