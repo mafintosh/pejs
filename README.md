@@ -21,7 +21,7 @@ template.compile('example/simple.html', function(err, render) {
 	// compiles test.html into a rendering function
 	console.log(render());
 });
-template.compile('example/simple.html', function(err, src) {
+template.parse('example/simple.html', function(err, src) {
 	// parses the template and compiles it down to portable js
 	// this means it works in the client!
 	console.log(src);
