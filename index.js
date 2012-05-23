@@ -146,6 +146,13 @@ var parser = function(root) {
 	root = root || '.';
 
 	var cache = {};
+	var readFile = function(file, callback) {
+		fs.stat(file, function(err, stat) {
+			if (!err) return stat.isDirectory() ? readFile(path.join(file, 'index.html'), callback) : fs.readFile(file, 'utf-8', callback);
+			if (!/\.html$/.test(file)) return readFile(file+'.html', callback);
+			callback(err);
+		});
+	};
 	var parseTree = function(file, callback) {
 		var cwd = path.dirname(file);
 		var end = function(err, tree) {
@@ -153,7 +160,7 @@ var parser = function(root) {
 			callback(err, tree);
 		};
 
-		fs.readFile(file, 'utf-8', function(err, src) {
+		readFile(file, function(err, src) {
 			if (err) return end(err);
 
 			var tree = parse(src);
@@ -187,7 +194,7 @@ var parser = function(root) {
 	var template = {};	
 
 	template.parse = function(file, callback) {
-		parseTree(file, function(err, tree) {
+		parseTree(path.join(root, file), function(err, tree) {
 			if (err) return callback(err);
 
 			var deps = [file];
