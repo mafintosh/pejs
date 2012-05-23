@@ -26,7 +26,7 @@ var parse = function(src) {
 		var pre = line.shift();
 		var live = !!(pre[1] === '[');
 		var auto = pre === '{{' ? BLOCK_DECLARE : BLOCK_OVERRIDE;
-		var ctx = pre.replace(/[\{\[]+/, '{') + (line.length > 1 ? line.pop().replace(/[\}\]]+/, '}') : '');
+		var ctx = pre[0] === '{' || pre[0] === '[' && pre.replace(/[\{\[]+/, '{') + (line.length > 1 ? line.pop().replace(/[\}\]]+/, '}') : '');
 
 		line = line.join(' ');
 
@@ -69,17 +69,7 @@ var compile = function(tree) {
 			if (node.type === STATIC) return result+'$t.w('+JSON.stringify(node.value)+');\n';
 			if (node.type === EXPRESSION) return result+'$t.w('+node.value+');\n';
 			if (node.type === ESCAPE_EXPRESSION) return result+'$t.e('+node.value+');\n';
-
-			if (node.type === LOGIC) {
-				if (/\{$/.test(node.value.trim())) {
-					indent += '\t';
-				}
-				if (/^\}/.test(node.value.trim())) {
-					indent = indent.replace('\t', '');
-					result = result.replace(/\t$/, '');
-				}
-				return result+node.value+'\n';
-			}
+			if (node.type === LOGIC) return result+node.value+'\n';
 
 			var name = JSON.stringify(node.name || null);
 			var locals = node.locals || 'locals';
