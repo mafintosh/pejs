@@ -144,7 +144,6 @@ var compile = function(tree) {
 var parser = function(root) {
 	root = root || '.';
 
-	var cache = {};
 	var resolve = function(files, callback) {
 		var file = files.shift();
 
@@ -197,21 +196,7 @@ var parser = function(root) {
 		});
 	};
 
-	var template = {};	
-
-	template.lexer = function(file, callback) {
-		var files = [];
-
-		parseTree(path.join(root, file), files, function(err, tree) {
-			callback(err, tree, files);
-		});
-	};
-	template.parse = function(file, callback) {
-		template.lexer(file, function(err, tree, files) {
-			callback(err, tree && compile(tree), files);
-		});
-	};
-	template.compile = function(file, callback) {
+	var template = function(file, callback) {
 		template.parse(file, function(err, src, deps) {
 			if (err) return callback(err);
 
@@ -224,6 +209,20 @@ var parser = function(root) {
 			}
 
 			callback(null, render, deps);
+		});
+	};
+
+	template.compile = template;
+	template.lexer = function(file, callback) {
+		var files = [];
+
+		parseTree(path.join(root, file), files, function(err, tree) {
+			callback(err, tree, files);
+		});
+	};
+	template.parse = function(file, callback) {
+		template.lexer(file, function(err, tree, files) {
+			callback(err, tree && compile(tree), files);
 		});
 	};
 

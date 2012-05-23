@@ -15,7 +15,7 @@ PEJS is easy to use:
 
 ``` js
 var pejs = require('pejs');
-var template = pejs('my-app-root');
+var template = pejs('./templates'); // the template dir (defaults to .)
 
 template.compile('example.ejs', function(err, render) {
 	// compiles test.html into a rendering function
