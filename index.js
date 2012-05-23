@@ -160,7 +160,7 @@ var parser = function(root) {
 			callback(err, tree);
 		};
 
-		resolve([file, path.join(file,'index.ejs'), path.join(file,'index.html'), file+'.ejs', file+'.html'], function(err, url) {
+		resolve([file, file+'.ejs', file+'.html', path.join(file,'index.ejs'), path.join(file,'index.html')], function(err, url) {
 			if (err) return end(err);
 
 			deps.push(url);
