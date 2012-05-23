@@ -198,7 +198,7 @@ var parser = function(root) {
 
 	var template = {};	
 
-	template.tree = function(file, callback) {
+	template.lexer = function(file, callback) {
 		var files = [];
 
 		parseTree(path.join(root, file), files, function(err, tree) {
@@ -206,7 +206,7 @@ var parser = function(root) {
 		});
 	};
 	template.parse = function(file, callback) {
-		template.tree(file, function(err, tree, files) {
+		template.lexer(file, function(err, tree, files) {
 			callback(err, tree && compile(tree), files);
 		});
 	};
