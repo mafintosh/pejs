@@ -17,11 +17,11 @@ PEJS is easy to use:
 var pejs = require('pejs');
 var template = pejs('my-app-root');
 
-template.compile('example/simple.html', function(err, render) {
+template.compile('tests/simple.html', function(err, render) {
 	// compiles test.html into a rendering function
 	console.log(render());
 });
-template.parse('example/simple.html', function(err, src) {
+template.parse('tests/simple.html', function(err, src) {
 	// parses the template and compiles it down to portable js
 	// this means it works in the client!
 	console.log(src);
@@ -47,13 +47,13 @@ A block is basically a partial template that optionally can be loaded from a fil
 
 In general all block can be loaded from a file instead of being defined inline by providing a filename:
 
-* declare block: `<%{{ myBlock 'example/simple.html' }}%>`
-* override block: `<%{ myOverrideBlock 'example/simple.html' }%>`
+* declare block: `<%{{ myBlock 'tests/simple.html' }}%>`
+* override block: `<%{ myOverrideBlock 'tests/simple.html' }%>`
 
 If you want include a block using a different set of locals than in you current scope you pass these as the last argument to the block.
 
 * declare block: `<%{{ myBlock {newLocalsArg:oldLocalsArg} }}%>`
-* override block: `<%{ 'example/simple.html', newLocalsHere }%>`
+* override block: `<%{ 'tests/simple.html', newLocalsHere }%>`
 
 ## Inheritance
 
