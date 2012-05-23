@@ -146,67 +146,68 @@ var parser = function(root) {
 	root = root || '.';
 
 	var cache = {};
-	var readFile = function(file, callback) {
+	var resolve = function(file, callback) {
 		fs.stat(file, function(err, stat) {
-			if (!err) return stat.isDirectory() ? readFile(path.join(file, 'index.html'), callback) : fs.readFile(file, 'utf-8', callback);
-			if (!/\.html$/.test(file)) return readFile(file+'.html', callback);
-			callback(err);
+			if (stat && stat.isDirectory()) return resolve(path.join(file, 'index.html'), callback);
+			if (err && !/\.html$/.test(file)) return resolve(file+'.html', callback);
+			callback(err, file);
 		});
 	};
-	var parseTree = function(file, callback) {
-		var cwd = path.dirname(file);
+	var parseTree = function(file, deps, callback) {
 		var end = function(err, tree) {
 			end = noop;
 			callback(err, tree);
 		};
 
-		readFile(file, function(err, src) {
+		resolve(file, function(err, url) {
 			if (err) return end(err);
 
-			var tree = parse(src);
-			var waiting = 0;
-			var update = noop;
+			deps.push(url);
+			fs.readFile(url, 'utf-8', function(err, src) {
+				if (err) return end(err);
 
-			tree.forEach(function visit(node) {
-				if (node.url) {
-					waiting++;
-					parseTree(node.url = path.join(node.url[0] === '/' ? root : cwd, node.url), function(err, tree) {
-						if (err) return end(err);
+				var cwd = path.dirname(url);
+				var tree = parse(src);
+				var waiting = 0;
+				var update = noop;
 
-						node.body = tree;
-						waiting--;
-						update();
-					});
-					return;
-				}
-				if (node.body) {
-					node.body.forEach(visit);
-				}
+				tree.forEach(function visit(node) {
+					if (node.url) {
+						waiting++;
+						parseTree(path.join(node.url[0] === '/' ? root : cwd, node.url), deps, function(err, tree) {
+							if (err) return end(err);
+
+							node.body = tree;
+							waiting--;
+							update();
+						});
+						return;
+					}
+					if (node.body) {
+						node.body.forEach(visit);
+					}
+				});
+				update = function() {
+					if (waiting) return;
+					end(null, tree);
+				};
+				update();
 			});
-			update = function() {
-				if (waiting) return;
-				end(null, tree);
-			};
-			update();
 		});
 	};
 
 	var template = {};	
 
+	template.tree = function(file, callback) {
+		var files = [];
+
+		parseTree(path.join(root, file), files, function(err, tree) {
+			callback(err, tree, files);
+		});
+	};
 	template.parse = function(file, callback) {
-		parseTree(path.join(root, file), function(err, tree) {
-			if (err) return callback(err);
-
-			var deps = [file];
-
-			tree.forEach(function visit(node) {
-				if (node.url) {
-					deps.push(node.url);
-				}
-				(node.body || []).forEach(visit);
-			});
-
-			callback(null, compile(tree), deps);
+		template.tree(file, function(err, tree, files) {
+			callback(err, tree && compile(tree), files);
 		});
 	};
 	template.compile = function(file, callback) {
