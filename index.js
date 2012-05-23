@@ -145,11 +145,13 @@ var parser = function(root) {
 	root = root || '.';
 
 	var cache = {};
-	var resolve = function(file, callback) {
+	var resolve = function(files, callback) {
+		var file = files.shift();
+
+		if (files.length === 0) return callback(null, file);
 		fs.stat(file, function(err, stat) {
-			if (stat && stat.isDirectory()) return resolve(path.join(file, 'index.html'), callback);
-			if (err && !/\.html$/.test(file)) return resolve(file+'.html', callback);
-			callback(err, file);
+			if (!err && !stat.isDirectory()) return callback(null, file);
+			resolve(files, callback);
 		});
 	};
 	var parseTree = function(file, deps, callback) {
@@ -158,7 +160,7 @@ var parser = function(root) {
 			callback(err, tree);
 		};
 
-		resolve(file, function(err, url) {
+		resolve([file, path.join(file,'index.ejs'), path.join(file,'index.html'), file+'.ejs', file+'.html'], function(err, url) {
 			if (err) return end(err);
 
 			deps.push(url);
