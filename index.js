@@ -1,6 +1,6 @@
 var fs = require('fs');
-var path = require('path');
 var vm = require('vm');
+var path = require('path');
 
 var STATIC            = 'STATIC';
 var LOGIC             = 'LOGIC';
