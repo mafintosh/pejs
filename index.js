@@ -230,3 +230,5 @@ var parser = function(root) {
 
 	return template;
 };
+
+module.exports = parser;
