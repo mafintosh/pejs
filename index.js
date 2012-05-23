@@ -114,7 +114,7 @@ var compile = function(tree) {
 
 			$b.toString = function() {
 				if ($b.block) {
-					$b.block($b, $b.locals);				
+					$b.block($b, $b.locals);
 				}
 				return ($b.toString = toString)();
 			};
@@ -203,7 +203,7 @@ var parser = function(root) {
 			var render;
 
 			try {
-				render = vm.runInNewContext(src, {console:console});			
+				render = vm.runInNewContext(src, {console:console});
 			} catch (err) {
 				return callback(err);
 			}
