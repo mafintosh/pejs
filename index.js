@@ -153,7 +153,7 @@ var parser = function(root) {
 			resolve(files, callback);
 		});
 	};
-	var parseTree = function(file, deps, callback) {
+	var lexer = function(file, deps, callback) {
 		var end = function(err, tree) {
 			end = noop;
 			callback(err, tree);
@@ -174,7 +174,7 @@ var parser = function(root) {
 				tree.forEach(function visit(node) {
 					if (node.url) {
 						waiting++;
-						parseTree(path.join(node.url[0] === '/' ? root : cwd, node.url), deps, function(err, tree) {
+						lexer(path.join(node.url[0] === '/' ? root : cwd, node.url), deps, function(err, tree) {
 							if (err) return end(err);
 
 							node.body = tree;
@@ -216,7 +216,7 @@ var parser = function(root) {
 	template.lexer = function(file, callback) {
 		var files = [];
 
-		parseTree(path.join(root, file), files, function(err, tree) {
+		lexer(path.join(root, file), files, function(err, tree) {
 			callback(err, tree, files);
 		});
 	};
