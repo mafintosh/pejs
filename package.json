@@ -1,6 +1,6 @@
 {
  "name":"pejs",
- "version":"0.1.8",
+ "version":"0.2.0",
  "keywords": ["template", "ejs", "inheritance"],
  "description":"Pre-compiled EJS with inheritance, block and file support that works both in the client and on the server",
  "homepage" : "https://github.com/gett/pejs",
