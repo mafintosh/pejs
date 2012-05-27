@@ -32,7 +32,7 @@ pejs.parse('./example.ejs', function(err, src) {
 PEJS uses a similar file/module resolution as node.js.
 
 * `pejs('./file')`: pejs will look for `file.ejs`, `file.html`, `file/index.ejs` or `file/index.html`. 
-* `pejs('template')`: pejs will look for for `template` in in the nearest `views` using the same scheme as above.
+* `pejs('template')`: pejs will look for for `template` in in the nearest `views` folder using the same scheme as above.
 
 This is almost exactly the same as node does with it's `node_modules` resolution.
 
