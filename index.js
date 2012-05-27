@@ -158,9 +158,9 @@ var resolve = function(name, cwd, callback) {
 		read([name, name+'.ejs', name+'.html', path.join(name, 'index.ejs'), path.join(name, 'index.html')], callback);
 	};
 	var views = function(cwd) {
-		file([cwd, 'views', name], function(err, file) {
+		file([cwd, 'views', name], function(err, file, src) {
 			if (err && cwd !== '/') return views(path.join(cwd, '..'));
-			callback(err, file);
+			callback(err, file, src);
 		});
 	};
 
