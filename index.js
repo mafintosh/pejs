@@ -141,92 +141,100 @@ var compile = function(tree) {
 
 	return out;
 };
-var parser = function(root) {
-	root = root || '.';
+var read = function(files, callback) {
+	var file = files.shift();
 
-	var resolve = function(files, callback) {
-		var file = files.shift();
-
-		if (files.length === 0) return callback(null, file);
-		fs.stat(file, function(err, stat) {
-			if (!err && !stat.isDirectory()) return callback(null, file);
-			resolve(files, callback);
+	fs.stat(file, function(err, stat) {
+		if (files.length && (err || stat.isDirectory())) return read(files, callback);
+		fs.readFile(file, 'utf-8', function(err, src) {
+			callback(err, file, src);
 		});
+	});
+};
+var resolve = function(name, cwd, callback) {
+	var file = function(names, callback) {
+		var name = path.join.apply(path, names);
+
+		read([name, name+'.ejs', name+'.html', path.join(name, 'index.ejs'), path.join(name, 'index.html')], callback);
 	};
-	var lexer = function(file, deps, callback) {
-		var end = function(err, tree) {
-			end = noop;
-			callback(err, tree);
-		};
-
-		resolve([file, file+'.ejs', file+'.html', path.join(file,'index.ejs'), path.join(file,'index.html')], function(err, url) {
-			if (err) return end(err);
-
-			deps.push(url);
-			fs.readFile(url, 'utf-8', function(err, src) {
-				if (err) return end(err);
-
-				var cwd = path.dirname(url);
-				var tree = parse(src);
-				var waiting = 0;
-				var update = noop;
-
-				tree.forEach(function visit(node) {
-					if (node.url) {
-						waiting++;
-						lexer(path.join(node.url[0] === '/' ? root : cwd, node.url), deps, function(err, tree) {
-							if (err) return end(err);
-
-							node.body = tree;
-							waiting--;
-							update();
-						});
-						return;
-					}
-					if (node.body) {
-						node.body.forEach(visit);
-					}
-				});
-				update = function() {
-					if (waiting) return;
-					end(null, tree);
-				};
-				update();
-			});
+	var views = function(cwd) {
+		file([cwd, 'views', name], function(err, file) {
+			if (err && cwd !== '/') return views(path.join(cwd, '..'));
+			callback(err, file);
 		});
 	};
 
-	var template = function(file, callback) {
-		template.parse(file, function(err, src, deps) {
-			if (err) return callback(err);
-
-			var render;
-
-			try {
-				render = vm.runInNewContext(src, {console:console});
-			} catch (err) {
-				return callback(err);
-			}
-
-			callback(null, render, deps);
-		});
-	};
-
-	template.compile = template;
-	template.lexer = function(file, callback) {
-		var files = [];
-
-		lexer(path.join(root, file), files, function(err, tree) {
-			callback(err, tree, files);
-		});
-	};
-	template.parse = function(file, callback) {
-		template.lexer(file, function(err, tree, files) {
-			callback(err, tree && compile(tree), files);
-		});
-	};
-
-	return template;
+	if (/^(\.)?\//.test(name)) {
+		file(name[0] === '/' ? [name] : [cwd, name], callback);
+	} else {
+		views(cwd);
+	}
 };
 
-module.exports = parser;
+var pejs = function(file, callback) {
+	pejs.parse(file, function(err, src, files) {
+		if (err) return callback(err);
+
+		var render;
+
+		try {
+			render = vm.runInNewContext(src, {console:console});
+		} catch (err) {
+			return callback(err);
+		}
+
+		callback(null, render, files);
+	});
+};
+
+pejs.lexer = function(name, callback) {
+	var once = false;
+	var files = [];
+	var lex = function(name, cwd, callback) {
+		resolve(name, cwd, function(err, url, src) {
+			if (err) return callback(err);
+
+			files.push(url);
+
+			var cwd = path.dirname(url);
+			var tree = parse(src);
+			var waiting = 0;
+			var update = noop;
+
+			tree.forEach(function visit(node) {
+				if (node.url) {
+					waiting++;
+					lex(node.url, cwd, function(err, tree) {
+						if (err) return callback(err);
+
+						node.body = tree;
+						waiting--;
+						update();
+					});
+					return;
+				}
+				if (node.body) {
+					node.body.forEach(visit);
+				}
+			});
+			update = function() {
+				if (waiting) return;
+				callback(null, tree);
+			};
+			update();
+		});
+	};
+
+	lex(name, process.cwd(), function(err, tree) {
+		if (once) return;
+		once = true;
+		callback(err, tree, files);
+	});
+};
+pejs.parse = function(file, callback) {
+	pejs.lexer(file, function(err, tree, files) {
+		callback(err, tree && compile(tree), files);
+	});
+};
+
+module.exports = pejs;

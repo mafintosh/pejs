@@ -1,6 +1,6 @@
 var assert = require('assert');
 
-require('pejs')(__dirname).lexer('fixtures/multiline.ejs', function(err, tree) {
+require('pejs').lexer(__dirname+'/fixtures/multiline.ejs', function(err, tree) {
 	if (err) throw err;
 
 	assert.equal(tree[0].type, 'STATIC');

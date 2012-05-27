@@ -15,18 +15,24 @@ PEJS is easy to use:
 
 ``` js
 var pejs = require('pejs');
-var template = pejs('./templates'); // the template dir (defaults to .)
 
-template.compile('example.ejs', function(err, render) {
-	// compiles test.html into a rendering function
+pejs.compile('./example.ejs', function(err, render) {
+	// compiles example.ejs into a rendering function
 	console.log(render());
 });
-template.parse('example.ejs', function(err, src) {
+pejs.parse('./example.ejs', function(err, src) {
 	// parses the template and compiles it down to portable js
 	// this means it works in the client!
 	console.log(src);
 });
 ```
+
+## Path resolution
+
+PEJS uses a similar file/module resolution as node.js.
+If you `compile('./filename')` it will look for `filename.ejs`, `filename.html`, `filename/index.ejs` or `filename/index.html`.
+If you instead provide a module path like `compile('template')` it will look for for `template` in in the nearest `views` using the same scheme as above.
+This is almost exactly the same as node does with it's `node_modules` resolution.
 
 ## Classic EJS
 
@@ -42,18 +48,20 @@ PEJS expands the original EJS syntax by letting you declare blocks using the `<%
 A block is basically a partial template that optionally can be loaded from a file.
 
 * declare block: `<%{{ blockName }}%>`
-* declare file block: `<%{ 'filename.html' }%>`
+* declare file block: `<%{ './filename.html' }%>`
 * override block: `<%{ blockName %>hello block<%} %>`
 
 In general all block can be loaded from a file instead of being defined inline by providing a filename:
 
-* declare block: `<%{{ myBlock 'example.ejs' }}%>`
+* declare block: `<%{{ myBlock './example.ejs' }}%>`
 * override block: `<%{ myOverrideBlock 'example.ejs' }%>`
 
 If you want include a block using a different set of locals than in you current scope you pass these as the last argument to the block.
 
 * declare block: `<%{{ myBlock {newLocalsArg:oldLocalsArg} }}%>`
-* override block: `<%{ 'example.ejs', newLocalsHere }%>`
+* override block: `<%{ './example.ejs', newLocalsHere }%>`
+
+All filepaths above are subject to the same path resolution as decribed in the previous section.
 
 ## Inheritance
 
@@ -67,7 +75,7 @@ Just declare a `base.html` with some anchored blocks:
 
 Then a `child.html` that renders `base.html`
 
-	<%{ 'base.html' }%>
+	<%{ './base.html' }%>
 	<%{ content %>
 		i am inserted in base
 	<%} %>
@@ -75,7 +83,7 @@ Then a `child.html` that renders `base.html`
 To render the example just render `child.html`
 
 ``` js
-template.compile('child.html', function(err, render) {
+pejs.compile('./child.html', function(err, render) {
 	console.log(render());
 });
 ```
