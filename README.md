@@ -30,8 +30,10 @@ pejs.parse('./example.ejs', function(err, src) {
 ## Path resolution
 
 PEJS uses a similar file/module resolution as node.js.
-If you `compile('./filename')` it will look for `filename.ejs`, `filename.html`, `filename/index.ejs` or `filename/index.html`.
-If you instead provide a module path like `compile('template')` it will look for for `template` in in the nearest `views` using the same scheme as above.
+
+* `pejs.compile('./filename')`: pejs will look for `filename.ejs`, `filename.html`, `filename/index.ejs` or `filename/index.html`. 
+* `pejs.compile('template'): pejs will look for for `template` in in the nearest `views` using the same scheme as above.
+
 This is almost exactly the same as node does with it's `node_modules` resolution.
 
 ## Classic EJS
