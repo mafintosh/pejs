@@ -16,7 +16,7 @@ PEJS is easy to use:
 ``` js
 var pejs = require('pejs');
 
-pejs.compile('./example.ejs', function(err, render) {
+pejs('./example.ejs', function(err, render) {
 	// compiles example.ejs into a rendering function
 	console.log(render());
 });
@@ -31,8 +31,8 @@ pejs.parse('./example.ejs', function(err, src) {
 
 PEJS uses a similar file/module resolution as node.js.
 
-* `pejs.compile('./file')`: pejs will look for `file.ejs`, `file.html`, `file/index.ejs` or `file/index.html`. 
-* `pejs.compile('template')`: pejs will look for for `template` in in the nearest `views` using the same scheme as above.
+* `pejs('./file')`: pejs will look for `file.ejs`, `file.html`, `file/index.ejs` or `file/index.html`. 
+* `pejs('template')`: pejs will look for for `template` in in the nearest `views` using the same scheme as above.
 
 This is almost exactly the same as node does with it's `node_modules` resolution.
 
@@ -85,7 +85,7 @@ Then a `child.html` that renders `base.html`
 To render the example just render `child.html`
 
 ``` js
-pejs.compile('./child.html', function(err, render) {
+pejs('./child.html', function(err, render) {
 	console.log(render());
 });
 ```
