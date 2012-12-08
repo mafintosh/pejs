@@ -37,12 +37,12 @@ var parse = function(src) {
 		line = (line.match(MATCH_BLOCK) || []).slice(1);
 		line = !line.length || (line[2] && !line[2]) ? {} : {
 			name:line[0],
-			url:line[1] && line[1].substr(1, line[1].length-2).replace(/\\(.)/g, '$1'), 
+			url:line[1] && line[1].substr(1, line[1].length-2).replace(/\\(.)/g, '$1'),
 			locals:line[2] && line[2].trim()
 		};
-		
+
 		if (ctx === '{}' && line.name) return {type:auto, live:live, name:line.name, locals:line.locals, url:line.url, body:[]};
-		if (ctx === '{}' && line.url)  return {type:BLOCK_ANONYMOUS, url:line.url};
+		if (ctx === '{}' && line.url)  return {type:BLOCK_ANONYMOUS, url:line.url, locals:line.locals};
 		if (ctx === '{' && line.name)  return {type:auto, live:live, name:line.name, locals:line.locals, capture:1, body:[]};
 		if (ctx === '}')               return {capture:-1};
 
