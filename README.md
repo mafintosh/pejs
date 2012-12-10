@@ -5,10 +5,6 @@ It's available through npm:
 
 	npm install pejs
 
-## Disclamer
-
-This module and documentation is still a work in progress so stuff might break and change.
-
 ## Usage
 
 PEJS is easy to use:
