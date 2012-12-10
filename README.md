@@ -23,7 +23,7 @@ pejs.parse('./example.ejs', function(err, src) {
 });
 ```
 
-PEJS has an internal cache of parsed templates which that when you render a template
+PEJS has an internal cache of parsed templates which means that when you render a template
 twice it will only parse it once.
 
 It also makes sure to clear this cache if the template has changed in anyway on the disk
