@@ -16,6 +16,8 @@ var TOKEN_END   = '%>';
 var MATCH_BLOCK = /^(\w+)?\s*((?:'(?:(?:\\')|[^'])*')|(?:"(?:(?:\\")|[^"])*"))?(?:\s+(.+))?$/;
 
 var noop = function() {};
+
+// parse pejs source into a source tree
 var parse = function(src) {
 	return Array.prototype.concat.apply([], src.split(TOKEN_END).map(function(slice) {
 		return slice.split(TOKEN_BEGIN);
@@ -25,7 +27,7 @@ var parse = function(src) {
 		var pre = (data.match(/^(\S*)/g) || [])[0];
 		var end = (data.match(/(\S*)$/g) || [])[0];
 		var line = data.replace(/^\S*/g, '').replace(/\S*$/g, '').trim();
-		var live = !!(pre[1] === '[');
+		var live = pre[1] === '[';
 		var auto = pre === '{{' ? BLOCK_DECLARE : BLOCK_OVERRIDE;
 		var ctx = (pre+end).replace(/[\{\[]+/g, '{').replace(/[\}\]]+/g, '}');
 
@@ -58,6 +60,8 @@ var parse = function(src) {
 		return result;
 	}, []);
 };
+
+// compile a source tree down to javascript
 var compile = function(tree) {
 	var stringify = function(tree, indent) {
 		var lvl = indent;
@@ -65,10 +69,10 @@ var compile = function(tree) {
 		return 'function($t,locals){\n'+lvl+'\twith (locals) {\n'+tree.reduce(function(result, node) {
 			result += indent+'\t\t';
 
-			if (node.type === STATIC) return result+'$t.w('+JSON.stringify(node.value)+');\n';
-			if (node.type === EXPRESSION) return result+'$t.w('+node.value+');\n';
+			if (node.type === STATIC)            return result+'$t.w('+JSON.stringify(node.value)+');\n';
+			if (node.type === EXPRESSION)        return result+'$t.w('+node.value+');\n';
 			if (node.type === ESCAPE_EXPRESSION) return result+'$t.e('+node.value+');\n';
-			if (node.type === LOGIC) return result+node.value+'\n';
+			if (node.type === LOGIC)             return result+node.value+'\n';
 
 			var name = JSON.stringify(node.name || null);
 			var locals = node.locals || 'locals';
@@ -82,6 +86,8 @@ var compile = function(tree) {
 			}
 		}, '').replace(/\n\s+$/g,'\n')+lvl+'\t}\n'+lvl+'}';
 	};
+
+	// TODO: maybe write this as a prototype to speed up initialization?
 	var template = function() {
 		var $t = {};
 		var buffer;
@@ -141,100 +147,158 @@ var compile = function(tree) {
 
 	return out;
 };
-var read = function(files, callback) {
-	var file = files.shift();
 
-	fs.stat(file, function(err, stat) {
-		if (files.length && (err || stat.isDirectory())) return read(files, callback);
-		fs.readFile(file, 'utf-8', function(err, src) {
-			callback(err, file, src);
+var findFile = function(file, callback) {
+	var name = path.join.apply(path, [].concat(file));
+	var files = [name, name+'.ejs', name+'.html', path.join(name, 'index.ejs'), path.join(name, 'index.html')];
+
+	var loop = function() {
+		var file = files.shift();
+
+		if (!file) return callback();
+
+		fs.stat(file, function(err, stat) {
+			if (err || stat.isDirectory()) return loop();
+
+			fs.realpath(file, function(err, filename) {
+				fs.readFile(filename, 'utf-8', function(err, src) {
+					callback(err, filename, src);
+				});
+			});
+		});
+	};
+
+	loop();
+};
+
+// resolve the name by looking in views or as a direct path
+var resolve = function(name, cwd, callback) {
+	if (name[0] === '/') return findFile(name, callback);
+	if (name[0] === '.') return findFile([cwd, name], callback);
+
+	var loop = function() {
+		findFile([cwd, 'views', name], function(err, file, src) {
+			if (file || cwd === '/') return callback(null, file, src);
+
+			cwd = path.join(cwd, '..');
+			loop();
+		});
+	};
+
+	loop();
+};
+
+// create a 'not-found' error
+var enoent = function(message) {
+	var err = new Error(message);
+	err.code = 'ENOENT';
+	return err;
+};
+
+var free = true;
+var waiting = [];
+
+// "locks" the execution - let everyone else wait for something to finish
+var lock = function(callback, fn) {
+	if (!free) return waiting.push(arguments);
+
+	free = false;
+	fn(function(err, val) {
+		free = true;
+
+		callback(err, val);
+		if (waiting.length) lock.apply(null, waiting.shift());
+	});
+};
+
+var cache = exports.cache = {};
+
+exports.tree = function(name, callback) {
+	var files = [];
+
+	var action = function(name, cwd, callback) {
+		resolve(name, cwd, function(err, filename, src) {
+			if (err) return callback(err);
+			if (!filename) return callback(enoent(name+' could not be found'));
+
+			files.push(filename);
+
+			var dir = path.dirname(filename);
+			var tree = parse(src);
+			var nodes = tree.filter(function(node) {
+				return node.url;
+			});
+
+			if (nodes.length === 0) return callback(null, tree);
+
+			var i = 0;
+			var loop = function() {
+				var node = nodes[i++];
+
+				if (!node) return callback(null, tree);
+
+				action(node.url, dir, function(err, resolved) {
+					if (err) return callback(err);
+
+					node.body = resolved;
+					loop();
+				});
+			};
+
+			loop();
+		});
+	};
+
+	lock(callback, function(free) {
+		if (cache[name]) return free(null, cache[name].tree);
+
+		action(name, process.cwd(), function(err, tree) {
+			if (err) return free(err);
+
+			cache[name] = cache[name] || {};
+			cache[name].tree = tree;
+
+			free(null, tree);
 		});
 	});
 };
-var resolve = function(name, cwd, callback) {
-	var file = function(names, callback) {
-		var name = path.join.apply(path, names);
 
-		read([name, name+'.ejs', name+'.html', path.join(name, 'index.ejs'), path.join(name, 'index.html')], callback);
-	};
-	var views = function(cwd) {
-		file([cwd, 'views', name], function(err, file, src) {
-			if (err && cwd !== '/') return views(path.join(cwd, '..'));
-			callback(err, file, src);
-		});
-	};
+exports.parse = function(name, callback) {
+	if (cache[name] && cache[name].source) return callback(null, cache[name].source);
 
-	if (/^(\.)?\//.test(name)) {
-		file(name[0] === '/' ? [name] : [cwd, name], callback);
-	} else {
-		views(cwd);
-	}
-};
-
-var pejs = function(file, callback) {
-	pejs.parse(file, function(err, src, files) {
+	exports.tree(name, function(err, tree) {
 		if (err) return callback(err);
 
-		var render;
+		cache[name].source = cache[name].source || compile(tree);
+
+		callback(null, cache[name].source);
+	});
+};
+
+exports.render = function(name, locals, callback) {
+	if (typeof locals === 'function') return exports.render(name, {}, locals);
+
+	if (cache[name] && cache[name].render) {
+		var result;
 
 		try {
-			render = vm.runInNewContext(src, {console:console});
+			result = cache[name].render(locals);
 		} catch (err) {
 			return callback(err);
 		}
 
-		callback(null, render, files);
+		return callback(null, result);
+	}
+
+	exports.parse(name, function(err, source) {
+		if (err) return callback(err);
+
+		try {
+			cache[name].render = cache[name].render || vm.runInNewContext(source, {console:console});
+		} catch (err) {
+			return callback(err);
+		}
+
+		exports.render(name, locals, callback);
 	});
 };
-
-pejs.lexer = function(name, callback) {
-	var once = false;
-	var files = [];
-	var lex = function(name, cwd, callback) {
-		resolve(name, cwd, function(err, url, src) {
-			if (err) return callback(err);
-
-			files.push(url);
-
-			var cwd = path.dirname(url);
-			var tree = parse(src);
-			var waiting = 0;
-			var update = noop;
-
-			tree.forEach(function visit(node) {
-				if (node.url) {
-					waiting++;
-					lex(node.url, cwd, function(err, tree) {
-						if (err) return callback(err);
-
-						node.body = tree;
-						waiting--;
-						update();
-					});
-					return;
-				}
-				if (node.body) {
-					node.body.forEach(visit);
-				}
-			});
-			update = function() {
-				if (waiting) return;
-				callback(null, tree);
-			};
-			update();
-		});
-	};
-
-	lex(name, process.cwd(), function(err, tree) {
-		if (once) return;
-		once = true;
-		callback(err, tree, files);
-	});
-};
-pejs.parse = function(file, callback) {
-	pejs.lexer(file, function(err, tree, files) {
-		callback(err, tree && compile(tree), files);
-	});
-};
-
-module.exports = pejs;
