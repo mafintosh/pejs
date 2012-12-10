@@ -211,6 +211,32 @@ var lock = function(callback, fn) {
 	});
 };
 
+var watchers = {};
+
+var watchFiles = function(filenames, fn) {
+	var onchange = function() {
+		filenames.forEach(function(filename) {
+			if (!watchers[filename]) return;
+			watchers[filename].removeListener('change', onchange);
+		});
+
+		fn();
+	};
+
+	filenames.forEach(function watchFile(filename) {
+		if (watchers[filename]) return watchers[filename].once('change', onchange);
+
+		watchers[filename] = fs.watch(filename, {persistent:false});
+		watchers[filename].setMaxListeners(0);
+		watchers[filename].once('change', function() {
+			delete watchers[filename];
+			this.close();
+		});
+
+		watchFile(filename, fn);
+	});
+};
+
 var cache = exports.cache = {};
 
 exports.tree = function(name, callback) {
@@ -257,6 +283,10 @@ exports.tree = function(name, callback) {
 
 			cache[name] = cache[name] || {};
 			cache[name].tree = tree;
+
+			watchFiles(files, function() {
+				delete cache[name];
+			});
 
 			free(null, tree);
 		});
