@@ -1,6 +1,6 @@
 # PEJS
 
-PEJS is pre-compiled EJS with a inheritance, blocks and file support that works both in the client and on the server.  
+PEJS is pre-compiled EJS with a inheritance, blocks and file support that works both in the client and on the server.
 It's available through npm:
 
 	npm install pejs
@@ -16,9 +16,9 @@ PEJS is easy to use:
 ``` js
 var pejs = require('pejs');
 
-pejs('./example.ejs', function(err, render) {
-	// compiles example.ejs into a rendering function
-	console.log(render());
+pejs.render('./example.ejs', function(err, result) {
+	// renders example.ejs into a string
+	console.log(result);
 });
 pejs.parse('./example.ejs', function(err, src) {
 	// parses the template and compiles it down to portable js
@@ -27,12 +27,17 @@ pejs.parse('./example.ejs', function(err, src) {
 });
 ```
 
+PEJS has an internal cache of parsed templates which that when you render a template
+twice it will only parse it once.
+
+It also makes sure to clear this cache if the template has changed in anyway on the disk
+
 ## Path resolution
 
 PEJS uses a similar file/module resolution as node.js.
 
-* `pejs('./file')`: pejs will look for `file.ejs`, `file.html`, `file/index.ejs` or `file/index.html`. 
-* `pejs('template')`: pejs will look for for `template` in in the nearest `views` folder using the same scheme as above.
+* `pejs.render('./file')`: pejs will look for `file.ejs`, `file.html`, `file/index.ejs` or `file/index.html`.
+* `pejs.render('template')`: pejs will look for for `template` in in the nearest `views` folder using the same scheme as above.
 
 This is almost exactly the same as node does with it's `node_modules` resolution.
 
@@ -46,7 +51,7 @@ PEJS templates has your usual EJS syntax with `<%` and `%>`. Read more about EJS
 
 ## Blocks
 
-PEJS expands the original EJS syntax by letting you declare blocks using the `<%{` syntax.  
+PEJS expands the original EJS syntax by letting you declare blocks using the `<%{` syntax.
 A block is basically a partial template that optionally can be loaded from a file.
 
 * declare block: `<%{{ blockName }}%>`
@@ -67,7 +72,7 @@ All filepaths above are subject to the same path resolution as decribed in the p
 
 ## Inheritance
 
-Using blocks it's easy to implement template inheritance.  
+Using blocks it's easy to implement template inheritance.
 Just declare a `base.html` with some anchored blocks:
 
 	<body>
@@ -85,8 +90,8 @@ Then a `child.html` that renders `base.html`
 To render the example just render `child.html`
 
 ``` js
-pejs('./child.html', function(err, render) {
-	console.log(render());
+pejs.render('./child.html', function(err, result) {
+	console.log(result);
 });
 ```
 
@@ -94,7 +99,7 @@ The above outputs:
 
 	<body>
 		Hello i am base
-		i am inserted in base		
+		i am inserted in base
 	</body>
 
 ## License
