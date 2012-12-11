@@ -15,6 +15,8 @@ var TOKEN_END   = '%>';
 
 var MATCH_BLOCK = /^(\w+)?\s*((?:'(?:(?:\\')|[^'])*')|(?:"(?:(?:\\")|[^"])*"))?(?:\s+(.+))?$/;
 
+var ROOT = path.resolve('/'); // find out what / is in windows terms
+
 var noop = function() {};
 
 // parse pejs source into a source tree
@@ -178,7 +180,7 @@ var resolve = function(name, cwd, callback) {
 
 	var loop = function() {
 		findFile([cwd, 'views', name], function(err, file, src) {
-			if (file || cwd === '/') return callback(null, file, src);
+			if (file || cwd === ROOT) return callback(null, file, src);
 
 			cwd = path.join(cwd, '..');
 			loop();
