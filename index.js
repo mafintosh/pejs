@@ -253,9 +253,14 @@ exports.tree = function(name, callback) {
 
 			var dir = path.dirname(filename);
 			var tree = parse(src);
-			var nodes = tree.filter(function(node) {
-				return node.url;
-			});
+
+			var nodes = [];
+			var visit = function(node) {
+				if (node.url) nodes.push(node);
+				if (node.body) node.body.forEach(visit);
+			};
+
+			tree.forEach(visit);
 
 			if (nodes.length === 0) return callback(null, tree);
 
