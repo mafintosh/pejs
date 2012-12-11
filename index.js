@@ -262,7 +262,7 @@ exports.tree = function(name, callback) {
 
 			tree.forEach(visit);
 
-			if (nodes.length === 0) return callback(null, tree);
+			if (!nodes.length) return callback(null, tree);
 
 			var i = 0;
 			var loop = function() {
