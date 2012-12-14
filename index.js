@@ -228,7 +228,7 @@ var watchFiles = function(filenames, fn) {
 	filenames.forEach(function watchFile(filename) {
 		if (watchers[filename]) return watchers[filename].once('change', onchange);
 
-		watchers[filename] = fs.watch(filename, {persistent:false});
+		watchers[filename] = fs.watch(filename, {persistent:false}, noop);
 		watchers[filename].setMaxListeners(0);
 		watchers[filename].once('change', function() {
 			delete watchers[filename];
