@@ -162,7 +162,7 @@ var free = true;
 var waiting = [];
 
 // "locks" the execution - let everyone else wait for something to finish
-var lock = function(callback, fn) {
+var lock = function(callback, fn) { // TODO: move to module
 	if (!free) return waiting.push(arguments);
 
 	free = false;
@@ -176,7 +176,7 @@ var lock = function(callback, fn) {
 
 var watchers = {};
 
-var watchFiles = function(filenames, fn) {
+var watchFiles = function(filenames, fn) { // TODO: find or create a module that does caching/watching for us
 	var onchange = function() {
 		filenames.forEach(function(filename) {
 			if (!watchers[filename]) return;
