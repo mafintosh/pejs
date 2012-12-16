@@ -1,6 +1,7 @@
 var fs = require('fs');
 var vm = require('vm');
 var path = require('path');
+var findModule = require('find-module');
 
 var STATIC            = 'STATIC';
 var LOGIC             = 'LOGIC';
@@ -150,46 +151,6 @@ var compile = function(tree) {
 	return out;
 };
 
-var findFile = function(file, callback) {
-	var name = path.join.apply(path, [].concat(file));
-	var files = [name, name+'.ejs', name+'.html', path.join(name, 'index.ejs'), path.join(name, 'index.html')];
-
-	var loop = function() {
-		var file = files.shift();
-
-		if (!file) return callback();
-
-		fs.stat(file, function(err, stat) {
-			if (err || stat.isDirectory()) return loop();
-
-			fs.realpath(file, function(err, filename) {
-				fs.readFile(filename, 'utf-8', function(err, src) {
-					callback(err, filename, src);
-				});
-			});
-		});
-	};
-
-	loop();
-};
-
-// resolve the name by looking in views or as a direct path
-var resolve = function(name, cwd, callback) {
-	if (name[0] === '/') return findFile(name, callback);
-	if (name[0] === '.') return findFile([cwd, name], callback);
-
-	var loop = function() {
-		findFile([cwd, 'views', name], function(err, file, src) {
-			if (file || cwd === ROOT) return callback(null, file, src);
-
-			cwd = path.join(cwd, '..');
-			loop();
-		});
-	};
-
-	loop();
-};
-
 // create a 'not-found' error
 var enoent = function(message) {
 	var err = new Error(message);
@@ -244,48 +205,59 @@ var cache = exports.cache = {};
 exports.tree = function(name, callback) {
 	var files = [];
 
-	var action = function(name, cwd, callback) {
-		resolve(name, cwd, function(err, filename, src) {
+	var onsource = function(filename, source, callback) {
+		var dirname = path.dirname(filename);
+		var tree = parse(source);
+
+		files.push(filename);
+
+		var nodes = [];
+		var visit = function(node) {
+			if (node.url) nodes.push(node);
+			if (node.body) node.body.forEach(visit);
+		};
+
+		tree.forEach(visit);
+
+		if (!nodes.length) return callback(null, tree);
+
+		var i = 0;
+		var loop = function() {
+			var node = nodes[i++];
+
+			if (!node) return callback(null, tree);
+
+			resolve(node.url, dirname, function(err, resolved) {
+				if (err) return callback(err);
+
+				node.body = resolved;
+				loop();
+			});
+		};
+
+		loop();
+	};
+
+	var resolve = function(name, dirname, callback) {
+		findModule(name, {
+			dirname: dirname,
+			extensions: ['pejs', 'ejs', 'html'],
+			modules: 'views'
+		}, function(err, filename) {
 			if (err) return callback(err);
-			if (!filename) return callback(enoent(name+' could not be found'));
 
-			files.push(filename);
+			fs.readFile(filename, 'utf-8', function(err, source) {
+				if (err) return callback(err);
 
-			var dir = path.dirname(filename);
-			var tree = parse(src);
-
-			var nodes = [];
-			var visit = function(node) {
-				if (node.url) nodes.push(node);
-				if (node.body) node.body.forEach(visit);
-			};
-
-			tree.forEach(visit);
-
-			if (!nodes.length) return callback(null, tree);
-
-			var i = 0;
-			var loop = function() {
-				var node = nodes[i++];
-
-				if (!node) return callback(null, tree);
-
-				action(node.url, dir, function(err, resolved) {
-					if (err) return callback(err);
-
-					node.body = resolved;
-					loop();
-				});
-			};
-
-			loop();
+				onsource(filename, source, callback);
+			});
 		});
 	};
 
 	lock(callback, function(free) {
 		if (cache[name]) return free(null, cache[name].tree);
 
-		action(name, process.cwd(), function(err, tree) {
+		resolve(name, process.cwd(), function(err, tree) {
 			if (err) return free(err);
 
 			cache[name] = cache[name] || {};
