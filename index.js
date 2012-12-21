@@ -65,89 +65,62 @@ var parse = function(src) {
 };
 
 // compile a source tree down to javascript
-var compile = function(tree) {
-	var stringify = function(tree, indent) {
-		var lvl = indent;
+var compile = function(tree, name) {
+	var global = ['function _esc_(s){return (s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}\n'];
+	var cnt = 0;
 
-		return 'function($t,locals){\n'+lvl+'\twith (locals) {\n'+tree.reduce(function(result, node) {
-			result += indent+'\t\t';
+	var wrap = function(vars, body) {
+		return vars ? 'with(locals){var _r=[];var _b={};\n'+body+'}\n' : 'with(locals){\n'+body+'}\n';
+	};
 
-			if (node.type === STATIC)            return result+'$t.w('+JSON.stringify(node.value)+');\n';
-			if (node.type === EXPRESSION)        return result+'$t.w('+node.value+');\n';
-			if (node.type === ESCAPE_EXPRESSION) return result+'$t.e('+node.value+');\n';
-			if (node.type === LOGIC)             return result+node.value+'\n';
+	var debugable = function(url) {
+		return '_'+(url || '').split('/').slice(-2).join('_').replace(/[^a-zA-Z]/g, '_')+'_'+(cnt++);
+	};
 
-			var name = JSON.stringify(node.name || null);
+	var stringify = function(tree) {
+		var src = '';
+		var pushBefore = false;
+
+		var push = function(value) {
+			if (pushBefore) return src = src.slice(0,-3)+'+'+value+');\n';
+			src += '_r.push('+value+');\n';
+			pushBefore = true;
+		};
+
+		var logic = function(value) {
+			pushBefore = false;
+			src += value+'\n';
+		};
+
+		tree.forEach(function(node) {
+			if (node.type === STATIC)            return push(JSON.stringify(node.value));
+			if (node.type === EXPRESSION)        return push('('+node.value+')');
+			if (node.type === ESCAPE_EXPRESSION) return push('_esc_('+node.value+')');
+			if (node.type === LOGIC)             return logic(node.value);
+
 			var locals = node.locals || 'locals';
-			var fn = node.body.length ? ','+stringify(node.body, indent+'\t\t') : '';
+			var name = node.name && JSON.stringify(node.name);
+			var id = debugable(node.url);
 
-			if (node.type === BLOCK_DECLARE || node.type === BLOCK_ANONYMOUS) {
-				return result+'$t.d('+name+','+!!node.live+','+locals+fn+');\n';
+			if (node.type === BLOCK_ANONYMOUS) {
+				global.push('function '+id+'(_r,_b,locals){'+wrap(false, stringify(node.body))+'}\n');
+				return logic(id+'(_r,_b,'+locals+');');
 			}
-			if (node.type === BLOCK_OVERRIDE) {
-				return result+'$t.o('+name+','+locals+fn+');\n';
+
+			if (node.type === BLOCK_DECLARE) {
+				logic('_r.push({toString:function(){return _b['+name+']();}});');
 			}
-		}, '').replace(/\n\s+$/g,'\n')+lvl+'\t}\n'+lvl+'}';
+
+			global.push('function '+id+'(locals){'+wrap(true, stringify(node.body)+'return _r;')+'}\n');
+			logic('_b['+name+']=function(){return '+id+'('+locals+').join("");};');
+		});
+
+		return src;
 	};
 
-	// TODO: maybe write this as a prototype to speed up initialization?
-	var template = function() {
-		var $t = {};
-		var buffer;
-		var blocks = {};
-		var result = '';
-
-		$t.w = function(data) {
-			if (typeof data === 'object' && data) {
-				(buffer = buffer || []).push(result, data);
-				result = '';
-				return;
-			}
-			result += data;
-		};
-		$t.e = function(data) {
-			return $t.w((''+data).replace(/&(?!\w+;)/g,'&amp;').replace(/>/g,'&gt;').replace(/</g, '&lt;').replace(/"/g,'&quot;'));
-		};
-		$t.o = function(name, locals, block) {
-			var $b = blocks[name];
-
-			if (!$b) return;
-			$b.locals = locals;
-			$b.block = block;
-		};
-		$t.d = function(name, live, locals, block) {
-			if (!name) return block($t, locals);
-
-			var $b = blocks[name] = template();
-			var toString = $b.toString;
-
-			$b.toString = function() {
-				if ($b.block) {
-					$b.block($b, $b.locals);
-				}
-				return ($b.toString = toString)();
-			};
-
-			$t.w($b);
-			$t.o(name, locals, block);
-		};
-		$t.toString = function() {
-			if (buffer) {
-				result = buffer.join('')+result;
-				buffer = null;
-			}
-			return result;
-		};
-
-		return $t;
-	};
-
-	var out = '';
-	out += 'var template = '+template.toString().split('\n\t').join('\n')+';\n';
-	out += 'var reduce = '+stringify(tree, '')+';\n';
-	out += 'module.exports = function (locals) {\n\tvar $t = template();\n\treduce($t,locals || {});\n\treturn $t.toString();\n};';
-
-	return out;
+	var main = debugable(name);
+	var src = stringify(tree);
+	return global.join('')+'module.exports=function '+main+'(locals){locals=locals||{};'+wrap(true,src)+'return _r.join("");};';
 };
 
 // create a 'not-found' error
@@ -165,10 +138,9 @@ var lock = function(callback, fn) { // TODO: move to module
 	if (!free) return waiting.push(arguments);
 
 	free = false;
-	fn(function(err, val) {
+	fn(function() {
 		free = true;
-
-		callback(err, val);
+		callback.apply(null, arguments);
 		if (waiting.length) lock.apply(null, waiting.shift());
 	});
 };
@@ -218,17 +190,18 @@ exports.tree = function(name, callback) {
 
 		tree.forEach(visit);
 
-		if (!nodes.length) return callback(null, tree);
+		if (!nodes.length) return callback(null, tree, filename);
 
 		var i = 0;
 		var loop = function() {
 			var node = nodes[i++];
 
-			if (!node) return callback(null, tree);
+			if (!node) return callback(null, tree, filename);
 
-			resolve(node.url, dirname, function(err, resolved) {
+			resolve(node.url, dirname, function(err, resolved, url) {
 				if (err) return callback(err);
 
+				node.url = url;
 				node.body = resolved;
 				loop();
 			});
@@ -254,19 +227,20 @@ exports.tree = function(name, callback) {
 	};
 
 	lock(callback, function(free) {
-		if (cache[name]) return free(null, cache[name].tree);
+		if (cache[name]) return free(null, cache[name].tree, cache[name].url);
 
-		resolve(name, process.cwd(), function(err, tree) {
+		resolve(name, process.cwd(), function(err, tree, url) {
 			if (err) return free(err);
 
 			cache[name] = cache[name] || {};
 			cache[name].tree = tree;
+			cache[name].url = url;
 
 			watchFiles(files, function() {
 				delete cache[name];
 			});
 
-			free(null, tree);
+			free(null, tree, url);
 		});
 	});
 };
@@ -274,10 +248,10 @@ exports.tree = function(name, callback) {
 exports.parse = function(name, callback) {
 	if (cache[name] && cache[name].source) return callback(null, cache[name].source);
 
-	exports.tree(name, function(err, tree) {
+	exports.tree(name, function(err, tree, url) {
 		if (err) return callback(err);
 
-		cache[name].source = cache[name].source || compile(tree);
+		cache[name].source = cache[name].source || compile(tree, url);
 
 		callback(null, cache[name].source);
 	});
