@@ -15,7 +15,19 @@ if (!fs.existsSync(filename)) {
 	process.exit(2);
 }
 
+var tree = process.argv.indexOf('--tree') > -1 || process.argv.indexOf('-t') > -1;
+
 filename = fs.realpathSync(filename);
+
+if (tree) {
+	pejs.tree(filename, function(err, tree) {
+		if (err) {
+			console.error(err.message);
+			process.exit(3);
+		}
+		console.log(JSON.stringify(tree));
+	});
+}
 
 pejs.parse(filename, function(err, src) {
 	if (err) {
