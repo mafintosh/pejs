@@ -142,11 +142,10 @@ var compile = function(tree) {
 		return $t;
 	};
 
-	var out = '(function() {\n';
-
-	out += '\tvar template = '+template.toString()+';\n';
-	out += '\tvar reduce = '+stringify(tree, '').split('\n').join('\n\t')+';\n';
-	out += '\treturn function (locals) {\n\t\tvar $t = template();\n\t\treduce($t,locals || {});\n\t\treturn $t.toString();\n\t};\n}());';
+	var out = '';
+	out += 'var template = '+template.toString().split('\n\t').join('\n')+';\n';
+	out += 'var reduce = '+stringify(tree, '')+';\n';
+	out += 'module.exports = function (locals) {\n\tvar $t = template();\n\treduce($t,locals || {});\n\treturn $t.toString();\n};';
 
 	return out;
 };
@@ -284,6 +283,12 @@ exports.parse = function(name, callback) {
 	});
 };
 
+var requireSource = function(source) {
+	var module = {exports:{}};
+	vm.runInNewContext(source, {console:console, module:module});
+	return module.exports;
+};
+
 exports.render = function(name, locals, callback) {
 	if (typeof locals === 'function') return exports.render(name, {}, locals);
 
@@ -303,7 +308,7 @@ exports.render = function(name, locals, callback) {
 		if (err) return callback(err);
 
 		try {
-			cache[name].render = cache[name].render || vm.runInNewContext(source, {console:console});
+			cache[name].render = cache[name].render || requireSource(source);
 		} catch (err) {
 			return callback(err);
 		}
