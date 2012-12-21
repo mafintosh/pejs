@@ -27,6 +27,7 @@ if (tree) {
 		}
 		console.log(JSON.stringify(tree));
 	});
+	return;
 }
 
 pejs.parse(filename, function(err, src) {
