@@ -10,13 +10,17 @@ var filenames = process.argv.slice(2).filter(function(filename, i, filenames) {
 });
 
 if (!filenames.length) {
-	console.error('usage: pejs filename [options]');
+	console.error('usage: pejs filename1, filename2, ... [options]');
 	console.error('  --out to specify output file (%f.out.js)');
 	console.error('  --tree to output the parsed template tree');
 	process.exit(1);
 }
 if (filenames.length > 1 && !format) {
 	console.error('multiple input files requires an output format ie --out %f.out.js');
+	process.exit(1);
+}
+if (filenames.length > 1 && tree) {
+	console.error('multiple input files is not supported with --tree');
 	process.exit(1);
 }
 
@@ -47,7 +51,10 @@ if (format) {
 				console.error(err.message);
 				process.exit(3);
 			}
-			fs.writeFile(format.replace('%f', filename.split('/').pop()), src);
+			var file = filename.split('/').pop();
+			var name = file.replace(/\.[^.]+$/, '');
+
+			fs.writeFile(format.replace('%f', file).replace('%n', name), src);
 		});
 	});
 	return;
