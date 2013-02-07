@@ -65,7 +65,7 @@ var parse = function(src) {
 };
 
 // compile a source tree down to javascript
-var compile = function(tree, name) {
+var compile = function(tree, name, exports) {
 	var global = ['function _esc_(s){return (s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}\n'];
 	var cnt = 0;
 
@@ -120,7 +120,8 @@ var compile = function(tree, name) {
 
 	var main = debugable(name);
 	var src = stringify(tree);
-	return global.join('')+'module.exports=function '+main+'(locals){locals=locals||{};'+wrap(true,src)+'return _r.join("");};';
+	exports = exports ? 'exports['+JSON.stringify(exports)+']' : 'module.exports';
+	return global.join('')+exports+'=function '+main+'(locals){locals=locals||{};'+wrap(true,src)+'return _r.join("");};';
 };
 
 // create a 'not-found' error
@@ -245,13 +246,14 @@ exports.tree = function(name, callback) {
 	});
 };
 
-exports.parse = function(name, callback) {
+exports.parse = function(name, options, callback) {
+	if (typeof options === 'function') return exports.parse(name, {}, options);
 	if (cache[name] && cache[name].source) return callback(null, cache[name].source);
 
 	exports.tree(name, function(err, tree, url) {
 		if (err) return callback(err);
 
-		cache[name].source = cache[name].source || compile(tree, url);
+		cache[name].source = cache[name].source || compile(tree, url, options && options.exports);
 
 		callback(null, cache[name].source);
 	});
