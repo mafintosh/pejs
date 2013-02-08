@@ -39,6 +39,7 @@ if (tree) {
 }
 
 
+var once = true;
 filenames.forEach(function(filename) {
 	var exports = filenames.length > 1 && path.basename(filename).slice(0, -path.extname(filename).length);
 
@@ -47,7 +48,8 @@ filenames.forEach(function(filename) {
 			console.error(err.message);
 			process.exit(3);
 		}
-
+		if (!once) src = src.replace(pejs.ESCAPE_SOURCE, '');
+		once = false;
 		console.log(src);
 	});
 });

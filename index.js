@@ -13,6 +13,7 @@ var BLOCK_ANONYMOUS   = 'BLOCK_ANONYMOUS';
 
 var TOKEN_BEGIN = '<%';
 var TOKEN_END   = '%>';
+var ESCAPE_SOURCE = 'function _esc_(s){return (s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}\n';
 
 var MATCH_BLOCK = /^(\w+)?\s*((?:'(?:(?:\\')|[^'])*')|(?:"(?:(?:\\")|[^"])*"))?(?:\s+(.+))?$/;
 
@@ -66,7 +67,7 @@ var parse = function(src) {
 
 // compile a source tree down to javascript
 var compile = function(tree, name, exports) {
-	var global = ['function _esc_(s){return (s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}\n'];
+	var global = [ESCAPE_SOURCE];
 	var cnt = 0;
 
 	var wrap = function(vars, body) {
@@ -171,6 +172,8 @@ var watchFiles = function(filenames, fn) { // TODO: find or create a module that
 		watchFile(filename, fn);
 	});
 };
+
+exports.ESCAPE_SOURCE = ESCAPE_SOURCE;
 
 var cache = exports.cache = {};
 
