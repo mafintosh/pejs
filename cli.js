@@ -41,7 +41,7 @@ if (tree) {
 
 var once = true;
 filenames.forEach(function(filename) {
-	var exports = filenames.length > 1 && path.basename(filename).slice(0, -path.extname(filename).length);
+	var exports = filename !== '-' && path.basename(filename).slice(0, -path.extname(filename).length);
 
 	pejs.parse(filename, {exports:exports}, function(err, src) {
 		if (err) {
