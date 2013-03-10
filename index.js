@@ -66,7 +66,7 @@ var parse = function(src) {
 };
 
 // compile a source tree down to javascript
-var compile = function(tree, name, exports) {
+var compile = function(tree, name) {
 	var global = [ESCAPE_SOURCE];
 	var cnt = 0;
 
@@ -121,8 +121,7 @@ var compile = function(tree, name, exports) {
 
 	var main = debugable(name);
 	var src = stringify(tree);
-	exports = exports ? 'exports['+JSON.stringify(exports)+']' : 'module.exports';
-	return global.join('')+exports+'=function '+main+'(locals){locals=locals||{};'+wrap(true,src)+'return _r.join("");};';
+	return global.join('')+'module.exports=function '+main+'(locals){locals=locals||{};'+wrap(true,src)+'return _r.join("");};';
 };
 
 // create a 'not-found' error
@@ -172,8 +171,6 @@ var watchFiles = function(filenames, fn) { // TODO: find or create a module that
 		watchFile(filename, fn);
 	});
 };
-
-exports.ESCAPE_SOURCE = ESCAPE_SOURCE;
 
 var cache = exports.cache = {};
 
@@ -256,7 +253,7 @@ exports.parse = function(name, options, callback) {
 	exports.tree(name, function(err, tree, url) {
 		if (err) return callback(err);
 
-		cache[name].source = cache[name].source || compile(tree, url, options && options.exports);
+		cache[name].source = cache[name].source || compile(tree, url);
 
 		callback(null, cache[name].source);
 	});

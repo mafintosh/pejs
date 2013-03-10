@@ -5,30 +5,24 @@ var path = require('path');
 var pejs = require('./index');
 
 var tree = process.argv.indexOf('--tree') > -1 || process.argv.indexOf('-t') > -1;
-var filenames = process.argv.slice(2).filter(function(filename, i, filenames) {
+var filename = process.argv.slice(2).filter(function(filename, i, filenames) {
 	return filename[0] !== '-' && (filenames[i-1] || '')[0] !== '-';
-});
+})[0];
 
-if (!filenames.length) {
-	console.error('usage: pejs filename1, filename2, ...');
-	process.exit(1);
-}
-if (filenames.length > 1 && tree) {
-	console.error('multiple input files is not supported with --tree');
+if (!filename) {
+	console.error('usage: pejs filename');
 	process.exit(1);
 }
 
-filenames.forEach(function(filename) {
-	if (!fs.existsSync(filename)) {
-		console.error(filename+' does not exist');
-		process.exit(2);
-	}
-});
+if (!fs.existsSync(filename)) {
+	console.error(filename+' does not exist');
+	process.exit(2);
+}
 
-filenames = filenames.map(fs.realpathSync);
+filename = fs.realpathSync(filename);
 
 if (tree) {
-	pejs.tree(filenames[0], function(err, tree) {
+	pejs.tree(filename, function(err, tree) {
 		if (err) {
 			console.error(err.message);
 			process.exit(3);
@@ -38,18 +32,10 @@ if (tree) {
 	return;
 }
 
-
-var once = true;
-filenames.forEach(function(filename) {
-	var exports = filename !== '-' && path.basename(filename).slice(0, -path.extname(filename).length);
-
-	pejs.parse(filename, {exports:exports}, function(err, src) {
-		if (err) {
-			console.error(err.message);
-			process.exit(3);
-		}
-		if (!once) src = src.replace(pejs.ESCAPE_SOURCE, '');
-		once = false;
-		console.log(src);
-	});
+pejs.parse(filename, function(err, src) {
+	if (err) {
+		console.error(err.message);
+		process.exit(3);
+	}
+	console.log(src);
 });
