@@ -13,7 +13,8 @@ var BLOCK_ANONYMOUS   = 'BLOCK_ANONYMOUS';
 
 var TOKEN_BEGIN = '<%';
 var TOKEN_END   = '%>';
-var ESCAPE_SOURCE = 'function _esc_(s){return (s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}\n';
+var GLOBAL_FNS = 'function _esc_(s){return (s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}\n'+
+	'function _inline_(fn){var s=fn();return function(){return s;};}\n';
 
 var MATCH_BLOCK = /^(\w+)?\s*((?:'(?:(?:\\')|[^'])*')|(?:"(?:(?:\\")|[^"])*"))?(?:\s+(.+))?$/;
 
@@ -67,7 +68,7 @@ var parse = function(src) {
 
 // compile a source tree down to javascript
 var compile = function(tree, name) {
-	var global = [ESCAPE_SOURCE];
+	var global = [GLOBAL_FNS];
 	var cnt = 0;
 
 	var wrap = function(vars, body) {
@@ -101,6 +102,7 @@ var compile = function(tree, name) {
 
 			var locals = node.locals || 'locals';
 			var name = node.name && JSON.stringify(node.name);
+			var decl = node.name && JSON.stringify(node.name+'$decl');
 			var id = debugable(node.url);
 
 			if (node.type === BLOCK_ANONYMOUS) {
@@ -109,7 +111,8 @@ var compile = function(tree, name) {
 			}
 
 			if (node.type === BLOCK_DECLARE) {
-				logic('_r.push({toString:function(){return _b['+name+']();}});');
+				logic('if (_b['+decl+']) _b['+decl+'].toString=_inline_(_b['+decl+'].toString);');
+				logic('_r.push(_b['+decl+']={toString:function(){return _b['+name+']();}});');
 			}
 
 			global.push('function '+id+'(locals){'+wrap(true, stringify(node.body)+'return _r;')+'}\n');
