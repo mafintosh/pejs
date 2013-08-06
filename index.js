@@ -253,6 +253,8 @@ exports.parse = function(name, options, callback) {
 	if (typeof options === 'function') return exports.parse(name, {}, options);
 	if (cache[name] && cache[name].source) return callback(null, cache[name].source);
 
+	options = options || {};
+
 	exports.tree(name, function(err, tree, url) {
 		if (err) return callback(err);
 
@@ -270,6 +272,8 @@ var requireSource = function(source) {
 
 exports.render = function(name, locals, callback) {
 	if (typeof locals === 'function') return exports.render(name, {}, locals);
+
+	locals = locals || {};
 
 	if (cache[name] && cache[name].render) {
 		var result;
