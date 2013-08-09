@@ -21,6 +21,9 @@ var MATCH_BLOCK = /^(\w+)?\s*((?:'(?:(?:\\')|[^'])*')|(?:"(?:(?:\\")|[^"])*"))?(
 var ROOT = path.resolve('/'); // find out what / is in windows terms
 
 var noop = function() {};
+var compress = function(str) {
+	return exports.compress ? str.replace(/\s+/g, ' ') : str;
+};
 
 // parse pejs source into a source tree
 var parse = function(src) {
@@ -95,7 +98,7 @@ var compile = function(tree, name) {
 		};
 
 		tree.forEach(function(node) {
-			if (node.type === STATIC)            return push(JSON.stringify(node.value));
+			if (node.type === STATIC)            return push(JSON.stringify(compress(node.value)));
 			if (node.type === EXPRESSION)        return push('('+node.value+')');
 			if (node.type === ESCAPE_EXPRESSION) return push('_esc_('+node.value+')');
 			if (node.type === LOGIC)             return logic(node.value);
