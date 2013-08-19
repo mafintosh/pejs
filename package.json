@@ -1,6 +1,6 @@
 {
  "name":"pejs",
- "version":"0.5.4",
+ "version":"0.5.5",
  "keywords": ["template", "ejs", "inheritance", "render"],
  "description":"Pre-compiled EJS with inheritance, block and file support that works both in the client and on the server",
  "repository" : "git://github.com/gett/pejs",
@@ -9,7 +9,7 @@
    "pejs":"./cli.js"
  },
  "dependencies": {
-   "find-module": "~0.1.1"
+   "find-module": "~0.2.1"
  },
  "contributors": [
    "Mathias Buus Madsen <m@ge.tt>"
