@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+// TODO: use optimist and improve this... A LOT
+
 var fs = require('fs');
 var path = require('path');
 var pejs = require('./index');
@@ -21,10 +23,10 @@ if (!fs.existsSync(filename)) {
 }
 
 filename = fs.realpathSync(filename);
-pejs.compress = compress;
+var views = pejs({compress:compress});
 
 if (tree) {
-	pejs.tree(filename, function(err, tree) {
+	views.parse(filename, function(err, tree) {
 		if (err) {
 			console.error(err.message);
 			process.exit(3);
@@ -34,7 +36,7 @@ if (tree) {
 	return;
 }
 
-pejs.parse(filename, function(err, src) {
+views.compile(filename, function(err, src) {
 	if (err) {
 		console.error(err.message);
 		process.exit(3);
