@@ -1,6 +1,6 @@
 var assert = require('assert');
 
-require('pejs').tree(__dirname+'/fixtures/static.ejs', function(err, tree) {
+require('./templating').parse('./fixtures/static.ejs', function(err, tree) {
 	if (err) throw err;
 
 	assert.equal(tree[0].type, 'STATIC');

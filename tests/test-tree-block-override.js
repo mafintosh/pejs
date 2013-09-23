@@ -1,6 +1,6 @@
 var assert = require('assert');
 
-require('pejs').tree(__dirname+'/fixtures/block-override.ejs', function(err, tree) {
+require('./templating').parse('./fixtures/block-override.ejs', function(err, tree) {
 	if (err) throw err;
 
 	assert.equal(tree[0].type, 'STATIC');
