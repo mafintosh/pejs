@@ -23,6 +23,14 @@ module.exports = function(opts) {
 	var templates = {};
 	var cache = templates.cache = {};
 
+	var resolvePath = function(name, dirname, callback) {
+		resolve(name, {
+			basedir: dirname,
+			extensions: ['.pejs', '.ejs', '.html'],
+			modulesDirectory: 'views'
+		}, callback);
+	};
+
 	templates.render = function(name, locals, callback) {
 		if (typeof locals === 'function') return templates.render(name, {}, locals);
 
@@ -59,12 +67,31 @@ module.exports = function(opts) {
 
 		opts = opts || {};
 
-		templates.parse(name, function(err, tree, url) {
-			if (err) return callback(err);
+		var maybePrecompiled = function(callback) {
+			if (opts.cejs === false) return callback();
 
-			cache[name].source = cache[name].source || codegen(tree, url);
+			resolvePath(name, opts.dirname, function(err, path) {
+				if (!path) return callback();
 
-			callback(null, cache[name].source);
+				fs.readFile(path+'.cejs', 'utf-8', function(err, src) {
+					if (err) return callback(err);
+
+					cache[name] = cache[name] || {};
+					cache[name].source = cache[name].source || src;
+					callback(null, cache[name].source);
+				});
+			});
+		};
+
+		maybePrecompiled(function(err, source) {
+			if (source) return callback(null, source);
+
+			templates.parse(name, function(err, tree, url) {
+				if (err) return callback(err);
+
+				cache[name].source = cache[name].source || codegen(tree, url);
+				callback(null, cache[name].source);
+			});
 		});
 	};
 
@@ -122,7 +149,7 @@ module.exports = function(opts) {
 		};
 
 		sequence(callback, function(free) {
-			if (cache[name]) return free(null, cache[name].tree, cache[name].url);
+			if (cache[name] && cache[name].tree) return free(null, cache[name].tree, cache[name].url);
 
 			resolveTemplate(name, opts.basedir, function(err, tree, url) {
 				if (err) return free(err);
