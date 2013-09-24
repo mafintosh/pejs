@@ -27,7 +27,7 @@ module.exports = function(opts) {
 		resolve(name, {
 			basedir: dirname,
 			extensions: ['.pejs', '.ejs', '.html'],
-			modulesDirectory: 'views'
+			moduleDirectory: 'views'
 		}, callback);
 	};
 
@@ -133,11 +133,7 @@ module.exports = function(opts) {
 		};
 
 		var resolveTemplate = function(name, dirname, callback) {
-			resolve(name, {
-				basedir: dirname,
-				extensions: ['.pejs', '.ejs', '.html'],
-				modulesDirectory: 'views'
-			}, function(err, filename) {
+			resolvePath(name, dirname, function(err, filename) {
 				if (err) return callback(err);
 
 				fs.readFile(filename, 'utf-8', function(err, source) {
