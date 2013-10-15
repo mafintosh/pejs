@@ -11,12 +11,13 @@ PEJS is easy to use:
 
 ``` js
 var pejs = require('pejs');
+var views = pejs(); // pass in {compress:true} to get compressed output
 
-pejs.render('./example.ejs', function(err, result) {
+views.render('./example.ejs', function(err, result) {
 	// renders example.ejs into a string
 	console.log(result);
 });
-pejs.parse('./example.ejs', function(err, src) {
+views.parse('./example.ejs', function(err, src) {
 	// parses the template and compiles it down to portable js
 	// this means it works in the client!
 	console.log(src);
@@ -32,8 +33,8 @@ It also makes sure to clear this cache if the template has changed in anyway on 
 
 PEJS uses a similar file/module resolution as node.js.
 
-* `pejs.render('./file')`: pejs will look for `file.ejs`, `file.html`, `file/index.ejs` or `file/index.html`.
-* `pejs.render('template')`: pejs will look for for `template` in in the nearest `views` folder using the same scheme as above.
+* `views.render('./file')`: pejs will look for `file.ejs`, `file.html`, `file/index.ejs` or `file/index.html`.
+* `views.render('template')`: pejs will look for for `template` in in the nearest `views` folder using the same scheme as above.
 
 This is almost exactly the same as node does with it's `node_modules` resolution.
 
@@ -43,7 +44,7 @@ PEJS templates has your usual EJS syntax with `<%` and `%>`. Read more about EJS
 
 * inline code: `<% var a = 42; %>`
 * insert: `<%- data %>`
-* escape: `<%= data %>`
+* insert and html escape: `<%= data %>`
 
 ## Blocks
 
