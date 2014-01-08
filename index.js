@@ -22,6 +22,7 @@ module.exports = function(opts) {
 
 	var templates = {};
 	var cache = templates.cache = {};
+	var compress = opts.compress;
 
 	var resolvePath = function(name, dirname, callback) {
 		resolve(name, {
@@ -89,7 +90,7 @@ module.exports = function(opts) {
 			templates.parse(name, function(err, tree, url) {
 				if (err) return callback(err);
 
-				cache[name].source = cache[name].source || codegen(tree, {name:url, compress:opts.compress});
+				cache[name].source = cache[name].source || codegen(tree, {name:url, compress:compress});
 				callback(null, cache[name].source);
 			});
 		});
