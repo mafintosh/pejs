@@ -89,7 +89,7 @@ module.exports = function(opts) {
 			templates.parse(name, function(err, tree, url) {
 				if (err) return callback(err);
 
-				cache[name].source = cache[name].source || codegen(tree, url);
+				cache[name].source = cache[name].source || codegen(tree, {name:url, compress:opts.compress});
 				callback(null, cache[name].source);
 			});
 		});
