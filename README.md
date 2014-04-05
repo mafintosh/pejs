@@ -29,11 +29,19 @@ twice it will only parse it once.
 
 It also makes sure to clear this cache if the template has changed in anyway on the disk
 
+## Options
+The `pejs()` init function supports the following options:
+
+ - `compress`: Compress the template output. Default: `false`
+ - `basedir`: Base directory for template resolution. Default: `cwd`
+ - `watch`: Watch templates for changes. Default: `true`
+
+
 ## Path resolution
 
 PEJS uses a similar file/module resolution as node.js.
 
-* `views.render('./file')`: pejs will look for `file.ejs`, `file.html`, `file/index.ejs` or `file/index.html`.
+* `views.render('./file')`: pejs will look for `file.pejs`, `file.ejs`, `file.html`, `file/index.pejs`, `file/index.ejs` or `file/index.html`.
 * `views.render('template')`: pejs will look for for `template` in in the nearest `views` folder using the same scheme as above.
 
 This is almost exactly the same as node does with it's `node_modules` resolution.
