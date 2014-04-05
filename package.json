@@ -1,20 +1,25 @@
 {
- "name":"pejs",
- "version":"0.6.4",
- "keywords": ["template", "ejs", "inheritance", "render"],
- "description":"Pre-compiled EJS with inheritance, block and file support that works both in the client and on the server",
- "repository" : "git://github.com/gett/pejs",
- "author": "Ge.tt <hello@ge.tt>",
- "bin": {
-   "pejs":"./cli.js"
- },
- "dependencies": {
+  "name": "pejs",
+  "version": "0.6.5",
+  "keywords": [
+    "template",
+    "ejs",
+    "inheritance",
+    "render"
+  ],
+  "description": "Pre-compiled EJS with inheritance, block and file support that works both in the client and on the server",
+  "repository": "git://github.com/gett/pejs",
+  "author": "Ge.tt <hello@ge.tt>",
+  "bin": {
+    "pejs": "./cli.js"
+  },
+  "dependencies": {
     "resolve": "~0.5.0"
- },
- "contributors": [
-   "Mathias Buus Madsen <m@ge.tt>"
- ],
- "scripts": {
-  "test": "node tests"
- }
+  },
+  "contributors": [
+    "Mathias Buus Madsen <m@ge.tt>"
+  ],
+  "scripts": {
+    "test": "node tests"
+  }
 }
