@@ -15,7 +15,7 @@ var requireSource = function(source) {
 	return module.exports;
 };
 
-module.exports = function(opts) {
+var pejs = function(opts) {
 	if (!opts) opts = {};
 
 	opts.basedir = opts.basedir || process.cwd();
@@ -168,3 +168,7 @@ module.exports = function(opts) {
 
 	return templates;
 };
+
+pejs.__express = pejs().render;
+
+module.exports = pejs;
