@@ -71,7 +71,7 @@ In general all block can be loaded from a file instead of being defined inline b
 If you want include a block using a different set of locals than in you current scope you pass these as the last argument to the block.
 
 * declare block: `<%{{ myBlock {newLocalsArg:oldLocalsArg} }}%>`
-* override block: `<%{ './example.ejs', newLocalsHere }%>`
+* override block: `<%{ './example.ejs' {newLocalsHere:oldLocalsArg} }%>`
 
 All filepaths above are subject to the same path resolution as decribed in the previous section.
 
