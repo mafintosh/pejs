@@ -13,7 +13,9 @@ PEJS is easy to use:
 var pejs = require('pejs');
 var views = pejs(); // pass in {compress:true} to get compressed output
 
-views.render('./example.ejs', function(err, result) {
+// The parameters for the EJS template ("example.ejs") are in the second argument
+// the "./" in the path represents the base directory (and not necessarily the current directory)
+views.render('./example.ejs', {parameter: 'value'}, function(err, result) {
 	// renders example.ejs into a string
 	console.log(result);
 });
